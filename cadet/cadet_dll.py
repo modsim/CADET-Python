@@ -1,12 +1,12 @@
-
-from cmath import sin
 import ctypes
 import numpy
 import addict
 import cadet.cadet_dll_parameterprovider as cadet_dll_parameterprovider
 
+
 def log_handler(file, func, line, level, level_name, message):
     log_print('{} ({}:{:d}) {}'.format(level_name.decode('utf-8') , func.decode('utf-8') , line, message.decode('utf-8') ))
+
 
 c_cadet_result = ctypes.c_int
 
@@ -20,8 +20,10 @@ CadetDriver = ctypes.c_void_p
 _CDT_OK = 0
 _CDT_DATA_NOT_STORED = -3
 
+
 def _no_log_output(*args):
     pass
+
 
 if 0:
     log_print = print
@@ -33,54 +35,66 @@ class CADETAPIV010000_DATA():
     """
     Definition of CADET-CAPI v1.0
 
-    _data_ : dict with signatures of exported API functions. (See CADET/include/cadet/cadet.h)
+    signatures : dict with signatures of exported API functions. (See CADET/include/cadet/cadet.h)
     lookup_prototype : ctypes for common parameters
     lookup_output_argument_type : ctypes for API output parameters (e.g., double* time or double** data)
-    
+
     """
 
     # Order is important, has to match the cdtAPIv010000 struct of the C-API
-    _data_ = {}
-    _data_['createDriver'] = ('drv',)
-    _data_['deleteDriver'] = (None, 'drv')
-    _data_['runSimulation'] = ('return', 'drv', 'parameterProvider')
-    _data_['getNParTypes'] = ('return', 'drv', 'unitOpId', 'nParTypes')
-    _data_['getSolutionInlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
-    _data_['getSolutionOutlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
-    _data_['getSolutionBulk'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
-    _data_['getSolutionParticle'] = ('return', 'drv', 'unitOpId', 'parType', 'time', 'data', 'nTime', 'nParShells', 'nAxialCells', 'nRadialCells', 'nComp')
-    _data_['getSolutionSolid'] = ('return', 'drv', 'unitOpId', 'parType', 'time', 'data', 'nTime', 'nParShells', 'nAxialCells', 'nRadialCells', 'nBound')
-    _data_['getSolutionFlux'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
-    _data_['getSolutionVolume'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime')
-    _data_['getSolutionDerivativeInlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
-    _data_['getSolutionDerivativeOutlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
-    _data_['getSolutionDerivativeBulk'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
-    _data_['getSolutionDerivativeParticle'] = ('return', 'drv', 'unitOpId', 'parType', 'time', 'data', 'nTime', 'nParShells', 'nAxialCells', 'nRadialCells', 'nComp')
-    _data_['getSolutionDerivativeSolid'] = ('return', 'drv', 'unitOpId', 'parType', 'time', 'data', 'nTime', 'nParShells', 'nAxialCells', 'nRadialCells', 'nBound')
-    _data_['getSolutionDerivativeFlux'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
-    _data_['getSolutionDerivativeVolume'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime')
-    _data_['getSensitivityInlet'] = ('return', 'drv', 'unitOpId', 'idx', 'time', 'data', 'nTime', 'nPort', 'nComp')
-    _data_['getSensitivityOutlet'] = ('return', 'drv', 'unitOpId', 'idx', 'time', 'data', 'nTime', 'nPort', 'nComp')
-    _data_['getSensitivityBulk'] = ('return', 'drv', 'unitOpId', 'idx', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
-    _data_['getSensitivityParticle'] = ('return', 'drv', 'unitOpId', 'idx', 'parType', 'time', 'data', 'nTime', 'nParShells', 'nAxialCells', 'nRadialCells', 'nComp')
-    _data_['getSensitivitySolid'] = ('return', 'drv', 'unitOpId', 'idx', 'parType', 'time', 'data', 'nTime', 'nParShells', 'nAxialCells', 'nRadialCells', 'nBound')
-    _data_['getSensitivityFlux'] = ('return', 'drv', 'unitOpId', 'idx', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
-    _data_['getSensitivityVolume'] = ('return', 'drv', 'unitOpId', 'idx', 'time', 'data', 'nTime')
-    _data_['getSensitivityDerivativeInlet'] = ('return', 'drv', 'unitOpId', 'idx', 'time', 'data', 'nTime', 'nPort', 'nComp')
-    _data_['getSensitivityDerivativeOutlet'] = ('return', 'drv', 'unitOpId', 'idx', 'time', 'data', 'nTime', 'nPort', 'nComp')
-    _data_['getSensitivityDerivativeBulk'] = ('return', 'drv', 'unitOpId', 'idx', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
-    _data_['getSensitivityDerivativeParticle'] = ('return', 'drv', 'unitOpId', 'idx', 'parType', 'time', 'data', 'nTime', 'nParShells', 'nAxialCells', 'nRadialCells', 'nComp')
-    _data_['getSensitivityDerivativeSolid'] = ('return', 'drv', 'unitOpId', 'idx', 'parType', 'time', 'data', 'nTime', 'nParShells', 'nAxialCells', 'nRadialCells', 'nBound')
-    _data_['getSensitivityDerivativeFlux'] = ('return', 'drv', 'unitOpId', 'idx', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
-    _data_['getSensitivityDerivativeVolume'] = ('return', 'drv', 'unitOpId', 'idx', 'time', 'data', 'nTime')
+    signatures = {}
+    signatures['createDriver'] = ('drv',)
+    signatures['deleteDriver'] = (None, 'drv')
+    signatures['runSimulation'] = ('return', 'drv', 'parameterProvider')
+    signatures['getNParTypes'] = ('return', 'drv', 'unitOpId', 'nParTypes')
 
+    signatures['getSolutionInlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
+    signatures['getSolutionOutlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
+    signatures['getSolutionBulk'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
+    signatures['getSolutionParticle'] = ('return', 'drv', 'unitOpId', 'parType', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nParShells', 'nComp')
+    signatures['getSolutionSolid'] = ('return', 'drv', 'unitOpId', 'parType', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nParShells', 'nBound')
+    signatures['getSolutionFlux'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nParTypes', 'nComp')
+    signatures['getSolutionVolume'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime')
+
+    signatures['getSolutionDerivativeInlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
+    signatures['getSolutionDerivativeOutlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
+    signatures['getSolutionDerivativeBulk'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
+    signatures['getSolutionDerivativeParticle'] = ('return', 'drv', 'unitOpId', 'parType', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nParShells', 'nComp')
+    signatures['getSolutionDerivativeSolid'] = ('return', 'drv', 'unitOpId', 'parType', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nParShells', 'nBound')
+    signatures['getSolutionDerivativeFlux'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nParTypes', 'nComp')
+    signatures['getSolutionDerivativeVolume'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime')
+
+    signatures['getSensitivityInlet'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'time', 'data', 'nTime', 'nPort', 'nComp')
+    signatures['getSensitivityOutlet'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'time', 'data', 'nTime', 'nPort', 'nComp')
+    signatures['getSensitivityBulk'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
+    signatures['getSensitivityParticle'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'parType', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nParShells', 'nComp')
+    signatures['getSensitivitySolid'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'parType', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nParShells', 'nBound')
+    signatures['getSensitivityFlux'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nParTypes', 'nComp')
+    signatures['getSensitivityVolume'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'time', 'data', 'nTime')
+
+    signatures['getSensitivityDerivativeInlet'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'time', 'data', 'nTime', 'nPort', 'nComp')
+    signatures['getSensitivityDerivativeOutlet'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'time', 'data', 'nTime', 'nPort', 'nComp')
+    signatures['getSensitivityDerivativeBulk'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
+    signatures['getSensitivityDerivativeParticle'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'parType', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nParShells', 'nComp')
+    signatures['getSensitivityDerivativeSolid'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'parType', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nParShells', 'nBound')
+    signatures['getSensitivityDerivativeFlux'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nParTypes', 'nComp')
+    signatures['getSensitivityDerivativeVolume'] = ('return', 'drv', 'unitOpId', 'sensIdx', 'time', 'data', 'nTime')
+
+    signatures['getLastState'] = ('return', 'drv', 'state', 'nStates')
+    signatures['getLastStateTimeDerivative'] = ('return', 'drv', 'state', 'nStates')
+    signatures['getLastUnitState'] = ('return', 'drv', 'unitOpId', 'state', 'nStates')
+    signatures['getLastUnitStateTimeDerivative'] = ('return', 'drv', 'unitOpId', 'state', 'nStates')
+    signatures['getLastSensitivityState'] = ('return', 'drv', 'sensIdx', 'state', 'nStates')
+    signatures['getLastSensitivityStateTimeDerivative'] = ('return', 'drv', 'sensIdx', 'state', 'nStates')
+    signatures['getLastSensitivityUnitState'] = ('return', 'drv', 'sensIdx', 'unitOpId', 'state', 'nStates')
+    signatures['getLastSensitivityUnitStateTimeDerivative'] = ('return', 'drv', 'sensIdx', 'unitOpId', 'state', 'nStates')
 
 
     lookup_prototype = {
         'return': c_cadet_result,
         'drv': CadetDriver,
         'unitOpId': ctypes.c_int,
-        'idx': ctypes.c_int,
+        'sensIdx': ctypes.c_int,
         'parType': ctypes.c_int,
         'time': array_double,
         'data': array_double,
@@ -92,6 +106,8 @@ class CADETAPIV010000_DATA():
         'nParShells': point_int,
         'nComp': point_int,
         'nBound': point_int,
+        'state': array_double,
+        'nStates': point_int,
         None: None,
         'parameterProvider': ctypes.POINTER(cadet_dll_parameterprovider.PARAMETERPROVIDER)
     }
@@ -107,6 +123,8 @@ class CADETAPIV010000_DATA():
         'nParShells': ctypes.c_int,
         'nComp': ctypes.c_int,
         'nBound': ctypes.c_int,
+        'state': ctypes.POINTER(ctypes.c_double),
+        'nStates': ctypes.c_int,
     }
 
 
@@ -114,7 +132,7 @@ def _setup_api():
     """list: Tuples with function names and ctype functions"""
     _fields_ = []
 
-    for key, value in CADETAPIV010000_DATA._data_.items():
+    for key, value in CADETAPIV010000_DATA.signatures.items():
         args = tuple(CADETAPIV010000_DATA.lookup_prototype[key] for key in value)
         _fields_.append( (key, ctypes.CFUNCTYPE(*args)) )
 
@@ -132,25 +150,30 @@ class SimulationResult:
         self._api = api
         self._driver = driver
 
-    def load_data(self, unit: int, get_solution, get_solution_str: str, idx: int = None, parType: int = None, own_data: bool = True):
+    def load_data(
+            self,
+            get_solution_str: str,
+            unitOpId: int | None,
+            sensIdx: int = None,
+            parType: int = None):
 
-        # TODO: Check if get_solution = self._api.__getattr__(get_solution_str) works
+        get_solution = getattr(self._api, get_solution_str)
 
         # Collect actual values
         call_args = []
         call_outputs = {}
 
         # Construct API call function arguments
-        for key in CADETAPIV010000_DATA._data_[get_solution_str]:
+        for key in CADETAPIV010000_DATA.signatures[get_solution_str]:
             if key == 'return':
                 # Skip, this is the actual return value of the API function
                 continue
             elif key == 'drv':
                 call_args.append(self._driver)
-            elif key == 'unitOpId':
-                call_args.append(unit)
-            elif key == 'idx':
-                call_args.append(idx)
+            elif key == 'unitOpId' and unitOpId is not None:
+                call_args.append(unitOpId)
+            elif key == 'sensIdx':
+                call_args.append(sensIdx)
             elif key == 'parType':
                 call_args.append(parType)
             else:
@@ -160,12 +183,20 @@ class SimulationResult:
 
         result = get_solution(*call_args)
 
+        return result, call_outputs
+
+    def process_data(
+            self,
+            result,
+            call_outputs,
+            own_data: bool = True):
+
         if result == _CDT_DATA_NOT_STORED:
             # Call successful, but data is not available
             return None, None, None
         elif result != _CDT_OK:
             # Something else failed
-            return None, None, None
+            raise Exception("Error reading data.")
 
         shape = []
         dims = []
@@ -188,89 +219,351 @@ class SimulationResult:
         else:
             return time, data, dims
 
-    def inlet(self, unit: int, own_data=True):
-        return self.load_data(unit, self._api.getSolutionInlet, 'getSolutionInlet', own_data=own_data)
+    def load_and_process(self, *args, own_data=True, **kwargs):
+        result, call_outputs = self.load_data(*args, **kwargs)
+        time, data, dims = self.process_data(result, call_outputs, own_data)
 
-    def outlet(self, unit: int, own_data=True):
-        return self.load_data(unit, self._api.getSolutionOutlet, 'getSolutionOutlet', own_data=own_data)
+        return time, data, dims
 
-    def bulk(self, unit: int, own_data=True):
-        return self.load_data(unit, self._api.getSolutionBulk, 'getSolutionBulk', own_data=own_data)
+    def load_data_old(
+            self,
+            get_solution_str: str,
+            unitOpId: int | None,
+            sensIdx: int = None,
+            parType: int = None,
+            own_data: bool = True):
 
-    def particle(self, unit: int, parType, own_data=True):
-        return self.load_data(unit, self._api.getSolutionBulk, 'getSolutionBulk', own_data=own_data)
+        get_solution = getattr(self._api, get_solution_str)
 
-    def solid(self, unit: int, parType, own_data=True):
-        return self.load_data(unit, self._api.getSolutionSolid, 'getSolutionSolid', own_data=own_data)
+        # Collect actual values
+        call_args = []
+        call_outputs = {}
 
-    def flux(self, unit: int, own_data=True):
-        return self.load_data(unit, self._api.getSolutionFlux, 'getSolutionFlux', own_data=own_data)
+        # Construct API call function arguments
+        for key in CADETAPIV010000_DATA.signatures[get_solution_str]:
+            if key == 'return':
+                # Skip, this is the actual return value of the API function
+                continue
+            elif key == 'drv':
+                call_args.append(self._driver)
+            elif key == 'unitOpId' and unitOpId is not None:
+                call_args.append(unitOpId)
+            elif key == 'sensIdx':
+                call_args.append(sensIdx)
+            elif key == 'parType':
+                call_args.append(parType)
+            else:
+                _obj = CADETAPIV010000_DATA.lookup_output_argument_type[key]()
+                call_outputs[key] = _obj
+                call_args.append(ctypes.byref(_obj))
 
-    def volume(self, unit: int, own_data=True):
-        return self.load_data(unit, self._api.getSolutionVolume, 'getSolutionVolume', own_data=own_data)
+        result = get_solution(*call_args)
 
-    def derivativeInlet(self, unit: int, own_data=True):
-        return self.load_data(unit, self._api.getSolutionDerivativeInlet, 'getSolutionDerivativeInlet', own_data=own_data)
+        if result == _CDT_DATA_NOT_STORED:
+            # Call successful, but data is not available
+            return None, None, None
+        elif result != _CDT_OK:
+            # Something else failed
+            raise Exception("Error reading data.")
 
-    def derivativeOutlet(self, unit: int, own_data=True):
-        return self.load_data(unit, self._api.getSolutionDerivativeOutlet, 'getSolutionDerivativeOutlet', own_data=own_data)
+        shape = []
+        dims = []
 
-    def derivativeBulk(self, unit: int, own_data=True):
-        return self.load_data(unit, self._api.getSolutionDerivativeBulk, 'getSolutionDerivativeBulk', own_data=own_data)
+        # Ordering of multi-dimensional arrays, all possible dimensions:
+        # Example: Outlet [nTime, nPort, nComp]
+        #          Bulk [nTime, nRadialCells, nAxialCells, nComp] if 2D model
+        #          Bulk [nTime, nAxialCells, nComp] if 1D model
+        dimensions = ['nTime', 'nPort', 'nRadialCells', 'nAxialCells', 'nParShells', 'nComp', 'nBound']
+        for dim in dimensions:
+            if dim in call_outputs and call_outputs[dim].value:
+                shape.append(call_outputs[dim].value)
+                dims.append(dim)
 
-    def derivativeParticle(self, unit: int, parType: int, own_data=True):
-        return self.load_data(unit, self._api.getSolutionDerivativeParticle, 'getSolutionDerivativeParticle', own_data=own_data)
+        data = numpy.ctypeslib.as_array(call_outputs['data'], shape=shape)
+        time = numpy.ctypeslib.as_array(call_outputs['time'], shape=(call_outputs['nTime'].value, ))
 
-    def derivativeSolid(self, unit: int, parType: int, own_data=True):
-        return self.load_data(unit, self._api.getSolutionDerivativeSolid, 'getSolutionDerivativeSolid', own_data=own_data)
+        if own_data:
+            return time.copy(), data.copy(), dims
+        else:
+            return time, data, dims
 
-    def derivativeFlux(self, unit: int, own_data=True):
-        return self.load_data(unit, self._api.getSolutionDerivativeFlux, 'getSolutionDerivativeFlux', own_data=own_data)
+    def npartypes(self, unitOpId: int, own_data=True):
+        result, call_outputs = self.load_data(
+            'getNParTypes',
+            unitOpId,
+        )
 
-    def derivativeVolume(self, unit: int, own_data=True):
-        return self.load_data(unit, self._api.getSolutionDerivativeVolume, 'getSolutionDerivativeVolume', own_data=own_data)
+        return int(numpy.ctypeslib.as_array(call_outputs['nParTypes']))
 
-    def sensitivityInlet(self, unit: int, idx, own_data=True):
-        return self.load_data(unit, self._api.getSensitivityInlet, 'getSensitivityInlet', idx=idx, own_data=own_data)
+    def solution_inlet(self, unitOpId: int, own_data=True):
+        return self.load_and_process(
+            'getSolutionInlet',
+            unitOpId,
+            own_data=own_data
+        )
 
-    def sensitivityOutlet(self, unit: int, idx, own_data=True):
-        return self.load_data(unit, self._api.getSensitivityOutlet, 'getSensitivityOutlet', idx=idx, own_data=own_data)
+    def solution_outlet(self, unitOpId: int, own_data=True):
+        return self.load_and_process(
+            'getSolutionOutlet',
+            unitOpId,
+            own_data=own_data
+        )
 
-    def sensitivityBulk(self, unit: int, idx, own_data=True):
-        return self.load_data(unit, self._api.getSensitivityBulk, 'getSensitivityBulk', idx=idx, own_data=own_data)
+    def solution_bulk(self, unitOpId: int, own_data=True):
+        return self.load_and_process(
+            'getSolutionBulk',
+            unitOpId,
+            own_data=own_data
+        )
 
-    def sensitivityParticle(self, unit: int, idx, parType: int, own_data=True):
-        return self.load_data(unit, self._api.getSensitivityParticle, 'getSensitivityParticle', idx=idx, parType=parType, own_data=own_data)
+    def solution_particle(self, unitOpId: int, parType, own_data=True):
+        return self.load_and_process(
+            'getSolutionParticle',
+            unitOpId,
+            parType=parType,
+            own_data=own_data
+        )
 
-    def sensitivitySolid(self, unit: int, idx, parType, own_data=True):
-        return self.load_data(unit, self._api.getSensitivitySolid, 'getSensitivitySolid', idx=idx, parType=parType, own_data=own_data)
+    def solution_solid(self, unitOpId: int, parType, own_data=True):
+        return self.load_and_process(
+            'getSolutionSolid',
+            unitOpId,
+            parType=parType,
+            own_data=own_data
+        )
 
-    def sensitivityFlux(self, unit: int, idx, own_data=True):
-        return self.load_data(unit, self._api.getSensitivityFlux, 'getSensitivityFlux', idx=idx, own_data=own_data)
+    def solution_flux(self, unitOpId: int, own_data=True):
+        return self.load_and_process(
+            'getSolutionFlux',
+            unitOpId,
+            own_data=own_data
+        )
 
-    def sensitivityVolume(self, unit: int, idx, own_data=True):
-        return self.load_data(unit, self._api.getSensitivityVolume, 'getSensitivityVolume', idx=idx, own_data=own_data)
+    def solution_volume(self, unitOpId: int, own_data=True):
+        return self.load_and_process(
+            'getSolutionVolume',
+            unitOpId,
+            own_data=own_data
+        )
 
-    def sensitivityDerivativeInlet(self, unit: int, idx, own_data=True):
-        return self.load_data(unit, self._api.getSensitivityDerivativeInlet, 'getSensitivityDerivativeInlet', idx=idx, own_data=own_data)
+    def soldot_inlet(self, unitOpId: int, own_data=True):
+        return self.load_and_process(
+            'getSolutionDerivativeInlet',
+            unitOpId,
+            own_data=own_data
+        )
 
-    def sensitivityDerivativeOutlet(self, unit: int, idx, own_data=True):
-        return self.load_data(unit, self._api.getSensitivityDerivativeOutlet, 'getSensitivityDerivativeOutlet', idx=idx, own_data=own_data)
+    def soldot_outlet(self, unitOpId: int, own_data=True):
+        return self.load_and_process(
+            'getSolutionDerivativeOutlet',
+            unitOpId,
+            own_data=own_data
+        )
 
-    def sensitivityDerivativeBulk(self, unit: int, idx, own_data=True):
-        return self.load_data(unit, self._api.getSensitivityDerivativeBulk, 'getSensitivityDerivativeBulk', idx=idx, own_data=own_data)
+    def soldot_bulk(self, unitOpId: int, own_data=True):
+        return self.load_and_process(
+            'getSolutionDerivativeBulk',
+            unitOpId,
+            own_data=own_data
+        )
 
-    def sensitivityDerivativeParticle(self, unit: int, idx, parType, own_data=True):
-        return self.load_data(unit, self._api.getSensitivityDerivativeParticle, 'getSensitivityDerivativeParticle', idx=idx, parType=parType, own_data=own_data)
+    def soldot_particle(self, unitOpId: int, parType: int, own_data=True):
+        return self.load_and_process(
+            'getSolutionDerivativeParticle',
+            unitOpId,
+            parType=parType,
+            own_data=own_data
+        )
 
-    def sensitivityDerivativeSolid(self, unit: int, idx, parType, own_data=True):
-        return self.load_data(unit, self._api.getSensitivityDerivativeSolid, 'getSensitivityDerivativeSolid', idx=idx, parType=parType, own_data=own_data)
+    def soldot_solid(self, unitOpId: int, parType: int, own_data=True):
+        return self.load_and_process(
+            'getSolutionDerivativeSolid',
+            unitOpId,
+            parType=parType,
+            own_data=own_data
+        )
 
-    def sensitivityDerivativeFlux(self, unit: int, idx, own_data=True):
-        return self.load_data(unit, self._api.getSensitivityDerivativeFlux, 'getSensitivityDerivativeFlux', idx=idx, own_data=own_data)
+    def soldot_flux(self, unitOpId: int, own_data=True):
+        return self.load_and_process(
+            'getSolutionDerivativeFlux',
+            unitOpId,
+            own_data=own_data
+        )
 
-    def sensitivityDerivativeVolume(self, unit: int, idx, own_data=True):
-        return self.load_data(unit, self._api.getSensitivityDerivativeVolume, 'getSensitivityDerivativeVolume', idx=idx, own_data=own_data)
+    def soldot_volume(self, unitOpId: int, own_data=True):
+        return self.load_and_process(
+            'getSolutionDerivativeVolume',
+            unitOpId,
+            own_data=own_data
+        )
+
+    def sens_inlet(self, unitOpId: int, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getSensitivityInlet',
+            unitOpId,
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def sens_outlet(self, unitOpId: int, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getSensitivityOutlet',
+            unitOpId,
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def sens_bulk(self, unitOpId: int, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getSensitivityBulk',
+            unitOpId,
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def sens_particle(self, unitOpId: int, sensIdx, parType: int, own_data=True):
+        return self.load_and_process(
+            'getSensitivityParticle',
+            unitOpId,
+            sensIdx=sensIdx,
+            parType=parType, own_data=own_data
+        )
+
+    def sens_solid(self, unitOpId: int, sensIdx, parType, own_data=True):
+        return self.load_and_process(
+            'getSensitivitySolid',
+            unitOpId,
+            sensIdx=sensIdx,
+            parType=parType, own_data=own_data
+        )
+
+    def sens_flux(self, unitOpId: int, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getSensitivityFlux',
+            unitOpId,
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def sens_volume(self, unitOpId: int, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getSensitivityVolume',
+            unitOpId,
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def sensdot_inlet(self, unitOpId: int, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getSensitivityDerivativeInlet',
+            unitOpId,
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def sensdot_outlet(self, unitOpId: int, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getSensitivityDerivativeOutlet',
+            unitOpId,
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def sensdot_bulk(self, unitOpId: int, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getSensitivityDerivativeBulk',
+            unitOpId,
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def sensdot_particle(self, unitOpId: int, sensIdx, parType, own_data=True):
+        return self.load_and_process(
+            'getSensitivityDerivativeParticle',
+            unitOpId,
+            sensIdx=sensIdx,
+            parType=parType, own_data=own_data
+        )
+
+    def sensdot_solid(self, unitOpId: int, sensIdx, parType, own_data=True):
+        return self.load_and_process(
+            'getSensitivityDerivativeSolid',
+            unitOpId,
+            sensIdx=sensIdx,
+            parType=parType, own_data=own_data
+        )
+
+    def sensdot_flux(self, unitOpId: int, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getSensitivityDerivativeFlux',
+            unitOpId,
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def sensdot_volume(self, unitOpId: int, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getSensitivityDerivativeVolume',
+            unitOpId,
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def last_state_y(self, own_data=True):
+        return self.load_and_process(
+            'getLastState',
+            own_data=own_data
+        )
+
+    def last_state_ydot(self, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getLastStateDerivative',
+            own_data=own_data
+        )
+
+    def last_state_y_unit(self, unitOpId: int, own_data=True):
+        return self.load_and_process(
+            'getLastUnitState',
+            unitOpId,
+            own_data=own_data
+        )
+
+    def last_state_ydot_unit(self, unitOpId: int, own_data=True):
+        return self.load_and_process(
+            'getLastUnitStateTimeDerivative',
+            unitOpId,
+            own_data=own_data
+        )
+
+    def last_state_sens(self, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getLastSensitivityState',
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def last_state_sensdot(self, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getLastSensitivityStateTimeDerivative',
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def last_state_sens_unit(self, unitOpId: int, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getLastSensitivityUnitState',
+            unitOpId,
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def last_state_sensdot_unit(self, unitOpId: int, sensIdx, own_data=True):
+        return self.load_and_process(
+            'getLastSensitivityUnitStateTimeDerivative',
+            unitOpId,
+            sensIdx=sensIdx,
+            own_data=own_data
+        )
 
 
 class CadetDLL:
@@ -338,7 +631,6 @@ class CadetDLL:
         log_print('deleteDriver()')
         self._api.deleteDriver(self._driver)
 
-
     def run(self, filename=None, simulation=None, timeout=None, check=None):
         pp = cadet_dll_parameterprovider.PARAMETERPROVIDER(simulation)
 
@@ -348,201 +640,212 @@ class CadetDLL:
         # TODO: Return if simulation was successful or crashed
         return self.res
 
-    def load_solution(self, sim, solution_fun, solution_str):
-        # - [ ] Split Ports (incl `SINGLE_AS_MULTI_PORT`)
-        # - [ ] Split Partype (Particle + Solid)
-        # - [ ] Coordinates?
-        # - [ ] Sensitivities / IDs
-        # - [ ] LAST_STATE_Y / LAST_STATE_YDOT
-        # - [ ] LAST_STATE_SENSY_XXX / LAST_STATE_SENSYDOT_XXX
-        solution = addict.Dict()
-        if self.res is not None:
-            for key, value in sim.root.input['return'].items():
-                if key.startswith('unit'):
-                    if value[f'write_{solution_str}']:
-                        unit = int(key[-3:])
-                        t, out, dims = solution_fun(unit)
-
-                        # Check if t is None -> Error
-
-                        if not len(solution.solution_times):
-                            solution.solution_times = t
-
-                        solution[key][solution_str] = out
-        return solution
-
-    def load_solution_io(self, sim, solution_fun, solution_str):
-        solution = addict.Dict()
-        if self.res is not None:
-            for key,value in sim.root.input['return'].items():
-                if key.startswith('unit'):
-                    if value[f'write_{solution_str}']:
-                        unit = int(key[-3:])
-                        t, out, dims = solution_fun(unit)
-
-                        # Check if t is None -> Error
-
-                        if not len(solution.solution_times):
-                            solution.solution_times = t
-
-                        split_components_data = value.get('split_components_data', 1)
-                        split_ports_data = value.get('split_ports_data', 1)
-                        single_as_multi_port = value.get('single_as_multi_port', 0)
-
-                        nComp = dims.index('nComp')
-                        try:
-                            nPorts = dims.index('nPorts')
-                        except ValueError:
-                            nPorts = None
-
-                        if split_components_data:
-                            if split_ports_data:
-                                if nPorts is None:
-                                    if single_as_multi_port:
-                                        for comp in range(out.shape[nComp]):
-                                            comp_out = numpy.squeeze(out[..., comp])
-                                            solution[key][f'{solution_str}_port_000_comp_{comp:03d}'] = comp_out
-                                    else:
-                                        for comp in range(out.shape[nComp]):
-                                            comp_out = numpy.squeeze(out[..., comp])
-                                            solution[key][f'{solution_str}_comp_{comp:03d}'] = comp_out
-                                else:
-                                    for port in range(out.shape[nPorts]):
-                                        for comp in range(out.shape[nComp]):
-                                            comp_out = numpy.squeeze(out[..., port, comp])
-                                            solution[key][f'{solution_str}_port_{port:03d}_comp_{comp:03d}'] = comp_out
-                            else:
-                                for comp in range(out.shape[nComp]):
-                                    comp_out = numpy.squeeze(out[...,comp])
-                                    solution[key][f'{solution_str}_comp_{comp:03d}'] = comp_out
-                        else:
-                            if split_ports_data:
-                                if nPorts is None:
-                                    if single_as_multi_port:
-                                        solution[key][f'{solution_str}_port_000'] = out
-                                    else:
-                                        solution[key][solution_str] = out
-                                else:
-                                    for port in range(out.shape[nPorts]):
-                                        port_out = numpy.squeeze(out[..., port, :])
-                                        solution[key][f'{solution_str}_port_{port:03d}'] = port_out
-                            else:
-                                solution[key][solution_str] = out
-        return solution
-
-    def load_inlet(self, sim):
-        return self.load_solution_io(sim, self.res.inlet, 'solution_inlet')
-
-    def load_outlet(self, sim):
-        return self.load_solution_io(sim, self.res.outlet, 'solution_outlet')
-
-    def load_bulk(self, sim):
-        return self.load_solution(sim, self.res.bulk, 'solution_bulk')
-
-    def load_particle(self, sim):
-        return self.load_solution(sim, self.res.particle, 'solution_particle')
-
-    def load_solid(self, sim):
-        return self.load_solution(sim, self.res.solid, 'solution_solid')
-
-    def load_flux(self, sim):
-        return self.load_solution(sim, self.res.flux, 'solution_flux')
-    
-    def load_flux(self, sim):
-        return self.load_solution(sim, self.res.flux, 'solution_flux')
-    
-    def load_volume(self, sim):
-        return self.load_solution(sim, self.res.volume, 'solution_volume')
-    
-    def load_derivative_inlet(self, sim):
-        return self.load_solution_io(sim, self.res.derivativeInlet, 'soldot_inlet')
-    
-    def load_derivative_outlet(self, sim):
-        return self.load_solution_io(sim, self.res.derivativeOutlet, 'soldot_outlet')
-    
-    def load_derivative_bulk(self, sim):
-        return self.load_solution(sim, self.res.derivativeBulk, 'soldot_bulk')
-
-    def load_derivative_particle(self, sim):
-        return self.load_solution(sim, self.res.derivativeParticle, 'soldot_particle')
-
-    def load_derivative_solid(self, sim):
-        return self.load_solution(sim, self.res.derivativeSolid, 'soldot_solid')
-
-    def load_derivative_flux(self, sim):
-        return self.load_solution(sim, self.res.derivativeFlux, 'soldot_flux')
-
-    def load_derivative_volume(self, sim):
-        return self.load_solution(sim, self.res.derivativeVolume, 'soldot_volume')
-
-    def load_sensitivity_inlet(self, sim):
-        return self.load_solution_io(sim, self.res.sensitivityInlet, 'sens_inlet')
-
-    def load_sensitivity_outlet(self, sim):
-        return self.load_solution_io(sim, self.res.sensitivityOutlet, 'sens_outlet')
-
-    def load_sensitivity_bulk(self, sim):
-        return self.load_solution(sim, self.res.sensitivityBulk, 'sens_bulk')
-
-    def load_sensitivity_particle(self, sim):
-        return self.load_solution(sim, self.res.sensitivityParticle, 'sens_particle')
-
-    def load_sensitivity_solid(self, sim):
-        return self.load_solution(sim, self.res.sensitivitySolid, 'sens_solid')
-
-    def load_sensitivity_flux(self, sim):
-        return self.load_solution(sim, self.res.sensitivityFlux, 'sens_flux')
-
-    def load_sensitivity_volume(self, sim):
-        return self.load_solution(sim, self.res.sensitivityVolume, 'sens_volume')
-
-    def load_sensitivity_derivative_inlet(self, sim):
-        return self.load_solution_io(sim, self.res.sensitivityDerivativeInlet, 'sensdot_inlet')
-
-    def load_sensitivity_derivative_outlet(self, sim):
-        return self.load_solution_io(sim, self.res.sensitivityDerivativeOutlet, 'sensdot_outlet')
-
-    def load_sensitivity_derivative_bulk(self, sim):
-        return self.load_solution(sim, self.res.sensitivityDerivativeBulk, 'sensdot_bulk')
-
-    def load_sensitivity_derivative_particle(self, sim):
-        return self.load_solution(sim, self.res.sensitivityDerivativeParticle, 'sensdot_particle')
-
-    def load_sensitivity_derivative_solid(self, sim):
-        return self.load_solution(sim, self.res.sensitivityDerivativeSolid, 'sensdot_solid')
-
-    def load_sensitivity_derivative_flux(self, sim):
-        return self.load_solution(sim, self.res.sensitivityDerivativeFlux, 'sensdot_flux')
-
-    def load_sensitivity_derivative_volume(self, sim):
-        return self.load_solution(sim, self.res.sensitivityDerivativeVolume, 'sensdot_volume')
-
     def load_results(self, sim):
-        sim.root.output.solution.update(self.load_inlet(sim))
-        sim.root.output.solution.update(self.load_outlet(sim))
-        sim.root.output.solution.update(self.load_bulk(sim))
-        sim.root.output.solution.update(self.load_particle(sim))
-        sim.root.output.solution.update(self.load_solid(sim))
-        sim.root.output.solution.update(self.load_flux(sim))
-        sim.root.output.solution.update(self.load_volume(sim))
-        sim.root.output.solution.update(self.load_derivative_inlet(sim))
-        sim.root.output.solution.update(self.load_derivative_outlet(sim))
-        sim.root.output.solution.update(self.load_derivative_bulk(sim))
-        sim.root.output.solution.update(self.load_derivative_particle(sim))
-        sim.root.output.solution.update(self.load_derivative_solid(sim))
-        sim.root.output.solution.update(self.load_derivative_flux(sim))
-        sim.root.output.solution.update(self.load_derivative_volume(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_inlet(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_outlet(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_bulk(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_particle(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_solid(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_flux(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_volume(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_derivative_inlet(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_derivative_outlet(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_derivative_bulk(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_derivative_particle(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_derivative_solid(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_derivative_flux(sim))
-        #sim.root.output.solution.update(self.load_sensitivity_derivative_volume(sim))
+        # TODO: solution time
+        # sim.root.output.solution.solution_time = ???
+        self.load_coordinates(sim)
+        # TODO: Crashes when simulation includes sensitivities
+        self.load_solution(sim)
+        self.load_sensitivity(sim)
+        self.load_state(sim)
+
+    def load_coordinates(self, sim):
+        solution = addict.Dict()
+        for unit in range(sim.root.input.model.nunits):
+            unit_index = self._get_index_string('unit', unit)
+            if 'write_coordinates' in sim.root.input['return'][unit_index].keys():
+                # TODO: Missing CAPI call
+                pass
+
+        return solution
+
+    def load_solution(self, sim):
+        solution = addict.Dict()
+        for unit in range(sim.root.input.model.nunits):
+            unit_index = self._get_index_string('unit', unit)
+            unit_solution = addict.Dict()
+
+            unit_solution.update(self._load_solution_io(sim, unit, 'solution_inlet'))
+            unit_solution.update(self._load_solution_io(sim, unit, 'solution_outlet'))
+            unit_solution.update(self._load_solution_trivial(sim, unit, 'solution_bulk'))
+            unit_solution.update(self._load_solution_particle(sim, unit, 'solution_particle'))
+            unit_solution.update(self._load_solution_particle(sim, unit, 'solution_solid'))
+            unit_solution.update(self._load_solution_trivial(sim, unit, 'solution_flux'))
+            unit_solution.update(self._load_solution_trivial(sim, unit, 'solution_volume'))
+
+            unit_solution.update(self._load_solution_io(sim, unit, 'soldot_inlet'))
+            unit_solution.update(self._load_solution_io(sim, unit, 'soldot_outlet'))
+            unit_solution.update(self._load_solution_trivial(sim, unit, 'soldot_bulk'))
+            unit_solution.update(self._load_solution_particle(sim, unit, 'soldot_particle'))
+            unit_solution.update(self._load_solution_particle(sim, unit, 'soldot_solid'))
+            unit_solution.update(self._load_solution_trivial(sim, unit, 'soldot_flux'))
+            unit_solution.update(self._load_solution_trivial(sim, unit, 'soldot_volume'))
+
+            solution[unit_index].update(unit_solution)
+
+        return solution
+
+    def load_sensitivity(self, sim):
+        sensitivity = addict.Dict()
+        nsens = sim.root.input.sensitivity.get('nsens', 0)
+        for sens in range(nsens):
+            sens_index = self._get_index_string('param', sens)
+            for unit in range(sim.root.input.model.nunits):
+                unit_sensitivity = addict.Dict()
+
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_io(sim, unit, 'sens_inlet', sens)
+                )
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_io(sim, unit, 'sens_outlet', sens)
+                )
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_trivial(sim, unit, 'sens_bulk', sens)
+                )
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_particle(sim, unit, 'sens_particle', sens)
+                )
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_particle(sim, unit, 'sens_solid', sens)
+                )
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_trivial(sim, unit, 'sens_flux', sens)
+                )
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_trivial(sim, unit, 'sens_volume', sens)
+                )
+
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_io(sim, unit, 'sensdot_inlet', sens)
+                )
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_io(sim, unit, 'sensdot_outlet', sens)
+                )
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_trivial(sim, unit, 'sensdot_bulk', sens)
+                )
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_particle(sim, unit, 'sensdot_particle', sens)
+                )
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_particle(sim, unit, 'sensdot_solid', sens)
+                )
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_trivial(sim, unit, 'sensdot_flux', sens)
+                )
+                unit_sensitivity[sens_index].update(
+                    self._load_solution_trivial(sim, unit, 'sensdot_volume', sens)
+                )
+
+            sensitivity[sens_index].update(unit_sensitivity)
+
+    def _checks_if_write_is_true(func):
+        def wrapper(self, sim, unitOpId, solution_str, *args, **kwargs):
+            unit_index = self._get_index_string('unit', unitOpId)
+            solution_recorder = sim.root.input['return'][unit_index].keys()
+            if f'write_{solution_str}' not in solution_recorder:
+                return {}
+
+            return func(self, sim, unitOpId, solution_str, *args, **kwargs)
+
+        return wrapper
+
+    @_checks_if_write_is_true
+    def _load_solution_trivial(self, sim, unitOpId, solution_str, sensIdx=None):
+        solution = addict.Dict()
+        solution_fun = getattr(self.res, solution_str)
+        if sensIdx is None:
+            t, out, dims = solution_fun(unitOpId)
+        else:
+            t, out, dims = solution_fun(unitOpId, sensIdx)
+
+        solution[solution_str] = out
+
+        return solution
+
+    @_checks_if_write_is_true
+    def _load_solution_io(self, sim, unitOpId, solution_str, sensIdx=None):
+        solution = addict.Dict()
+        solution_fun = getattr(self.res, solution_str)
+
+        if sensIdx is None:
+            t, out, dims = solution_fun(unitOpId)
+        else:
+            t, out, dims = solution_fun(unitOpId, sensIdx)
+
+        split_components_data = sim.root.input['return'].get('split_components_data', 1)
+        split_ports_data = sim.root.input['return'].get('split_ports_data', 1)
+        single_as_multi_port = sim.root.input['return'].get('single_as_multi_port', 0)
+
+        nComp = dims.index('nComp')
+        try:
+            nPorts = dims.index('nPorts')
+        except ValueError:
+            nPorts = None
+
+        if split_components_data:
+            if split_ports_data:
+                if nPorts is None:
+                    if single_as_multi_port:
+                        for comp in range(out.shape[nComp]):
+                            comp_out = numpy.squeeze(out[..., comp])
+                            solution[f'{solution_str}_port_000_comp_{comp:03d}'] = comp_out
+                    else:
+                        for comp in range(out.shape[nComp]):
+                            comp_out = numpy.squeeze(out[..., comp])
+                            solution[f'{solution_str}_comp_{comp:03d}'] = comp_out
+                else:
+                    for port in range(out.shape[nPorts]):
+                        for comp in range(out.shape[nComp]):
+                            comp_out = numpy.squeeze(out[..., port, comp])
+                            solution[f'{solution_str}_port_{port:03d}_comp_{comp:03d}'] = comp_out
+            else:
+                for comp in range(out.shape[nComp]):
+                    comp_out = numpy.squeeze(out[..., comp])
+                    solution[f'{solution_str}_comp_{comp:03d}'] = comp_out
+        else:
+            if split_ports_data:
+                if nPorts is None:
+                    if single_as_multi_port:
+                        solution[f'{solution_str}_port_000'] = out
+                    else:
+                        solution[solution_str] = out
+                else:
+                    for port in range(out.shape[nPorts]):
+                        port_out = numpy.squeeze(out[..., port, :])
+                        solution[f'{solution_str}_port_{port:03d}'] = port_out
+            else:
+                solution[solution_str] = out
+
+        return solution
+
+    @_checks_if_write_is_true
+    def _load_solution_particle(self, sim, unitOpId, solution_str, sensIdx=None):
+        solution = addict.Dict()
+        solution_fun = getattr(self.res, solution_str)
+
+        unit_index = self._get_index_string('unit', unitOpId)
+
+        npartype = self.res.npartypes(unitOpId)
+
+        for partype in range(npartype):
+            if sensIdx is None:
+                t, out, dims = solution_fun(unitOpId, partype)
+            else:
+                t, out, dims = solution_fun(unitOpId, sensIdx, partype)
+
+            if npartype == 1:
+                solution[solution_str] = out
+            else:
+                par_index = self._get_index_string('partype', partype)
+                solution[f'{solution_str}_{par_index}'] = out
+
+        return solution
+
+    def load_state(self, sim):
+        # TODO
+        pass
+
+    @staticmethod
+    def _get_index_string(prefix, index):
+        return f'{prefix}_{index:03d}'
