@@ -14,17 +14,32 @@ array_double = ctypes.POINTER(ctypes.POINTER(ctypes.c_double))
 
 
 point_int = ctypes.POINTER(ctypes.c_int)
+CadetDriver = ctypes.c_void_p
 
-def null(*args):
+# Values of cdtResult
+_CDT_OK = 0
+_CDT_DATA_NOT_STORED = -3
+
+def _no_log_output(*args):
     pass
 
 if 0:
     log_print = print
 else:
-    log_print = null
+    log_print = _no_log_output
 
 
 class CADETAPIV010000_DATA():
+    """
+    Definition of CADET-CAPI v1.0
+
+    _data_ : dict with signatures of exported API functions. (See CADET/include/cadet/cadet.h)
+    lookup_prototype : ctypes for common parameters
+    lookup_output_argument_type : ctypes for API output parameters (e.g., double* time or double** data)
+    
+    """
+
+    # Order is important, has to match the cdtAPIv010000 struct of the C-API
     _data_ = {}
     _data_['createDriver'] = ('drv',)
     _data_['deleteDriver'] = (None, 'drv')
@@ -59,9 +74,11 @@ class CADETAPIV010000_DATA():
     _data_['getSensitivityDerivativeFlux'] = ('return', 'drv', 'unitOpId', 'idx', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
     _data_['getSensitivityDerivativeVolume'] = ('return', 'drv', 'unitOpId', 'idx', 'time', 'data', 'nTime')
 
+
+
     lookup_prototype = {
         'return': c_cadet_result,
-        'drv': ctypes.c_void_p,
+        'drv': CadetDriver,
         'unitOpId': ctypes.c_int,
         'idx': ctypes.c_int,
         'parType': ctypes.c_int,
@@ -79,7 +96,7 @@ class CADETAPIV010000_DATA():
         'parameterProvider': ctypes.POINTER(cadet_dll_parameterprovider.PARAMETERPROVIDER)
     }
 
-    lookup_call = {
+    lookup_output_argument_type = {
         'time': ctypes.POINTER(ctypes.c_double),
         'nTime': ctypes.c_int,
         'data': ctypes.POINTER(ctypes.c_double),
@@ -93,7 +110,8 @@ class CADETAPIV010000_DATA():
     }
 
 
-def setup_api():
+def _setup_api():
+    """list: Tuples with function names and ctype functions"""
     _fields_ = []
 
     for key, value in CADETAPIV010000_DATA._data_.items():
@@ -104,140 +122,154 @@ def setup_api():
 
 
 class CADETAPIV010000(ctypes.Structure):
-    _fields_ = setup_api()
+    """Mimic cdtAPIv010000 struct of CADET C-API in ctypes"""
+    _fields_ = _setup_api()
 
 
-def null(obj):
-    "do nothing"
-    return obj
 class SimulationResult:
 
-    def __init__(self, api, driver):
+    def __init__(self, api: CADETAPIV010000, driver: CadetDriver):
         self._api = api
         self._driver = driver
 
-    def load_data(self, unit, get_solution, get_solution_str, idx=None, parType=None, own_data=True):
-        vars = {}
-        wrappers = {}
+    def load_data(self, unit: int, get_solution, get_solution_str: str, idx: int = None, parType: int = None, own_data: bool = True):
+
+        # TODO: Check if get_solution = self._api.__getattr__(get_solution_str) works
+
+        # Collect actual values
+        call_args = []
+        call_outputs = {}
+
+        # Construct API call function arguments
         for key in CADETAPIV010000_DATA._data_[get_solution_str]:
             if key == 'return':
+                # Skip, this is the actual return value of the API function
                 continue
             elif key == 'drv':
-                vars['drv'] = self._driver
-                wrappers[key] = null
+                call_args.append(self._driver)
             elif key == 'unitOpId':
-                vars['unitOpId'] = unit
-                wrappers[key] = null
+                call_args.append(unit)
             elif key == 'idx':
-                vars['idx'] = idx
-                wrappers[key] = null
+                call_args.append(idx)
             elif key == 'parType':
-                vars['parType'] = parType
-                wrappers[key] = null
+                call_args.append(parType)
             else:
-                vars[key] = CADETAPIV010000_DATA.lookup_call[key]()
-                wrappers[key] = ctypes.byref
+                _obj = CADETAPIV010000_DATA.lookup_output_argument_type[key]()
+                call_outputs[key] = _obj
+                call_args.append(ctypes.byref(_obj))
 
-        result = get_solution(*tuple(wrappers[var_key](var_value) for var_key, var_value in vars.items()))
+        result = get_solution(*call_args)
+
+        if result == _CDT_DATA_NOT_STORED:
+            # Call successful, but data is not available
+            return None, None, None
+        elif result != _CDT_OK:
+            # Something else failed
+            return None, None, None
 
         shape = []
         dims = []
-        dimensions = ['nTime', 'nPort', 'nParShells', 'nAxialCells', 'nRadialCells', 'nComp', 'nBound']
+
+        # Ordering of multi-dimensional arrays, all possible dimensions:
+        # Example: Outlet [nTime, nPort, nComp]
+        #          Bulk [nTime, nRadialCells, nAxialCells, nComp] if 2D model
+        #          Bulk [nTime, nAxialCells, nComp] if 1D model
+        dimensions = ['nTime', 'nPort', 'nRadialCells', 'nAxialCells', 'nParShells', 'nComp', 'nBound']
         for dim in dimensions:
-            if dim in vars and vars[dim].value:
-                shape.append(vars[dim].value)
+            if dim in call_outputs and call_outputs[dim].value:
+                shape.append(call_outputs[dim].value)
                 dims.append(dim)
 
-        data = numpy.ctypeslib.as_array(vars['data'], shape=shape)
-        time = numpy.ctypeslib.as_array(vars['time'], shape=(vars['nTime'].value, ))
+        data = numpy.ctypeslib.as_array(call_outputs['data'], shape=shape)
+        time = numpy.ctypeslib.as_array(call_outputs['time'], shape=(call_outputs['nTime'].value, ))
 
         if own_data:
             return time.copy(), data.copy(), dims
         else:
             return time, data, dims
 
-    def inlet(self, unit, own_data=True):
+    def inlet(self, unit: int, own_data=True):
         return self.load_data(unit, self._api.getSolutionInlet, 'getSolutionInlet', own_data=own_data)
 
-    def outlet(self, unit, own_data=True):
+    def outlet(self, unit: int, own_data=True):
         return self.load_data(unit, self._api.getSolutionOutlet, 'getSolutionOutlet', own_data=own_data)
 
-    def bulk(self, unit, own_data=True):
+    def bulk(self, unit: int, own_data=True):
         return self.load_data(unit, self._api.getSolutionBulk, 'getSolutionBulk', own_data=own_data)
 
-    def particle(self, unit, parType, own_data=True):
+    def particle(self, unit: int, parType, own_data=True):
         return self.load_data(unit, self._api.getSolutionBulk, 'getSolutionBulk', own_data=own_data)
 
-    def solid(self, unit, parType, own_data=True):
+    def solid(self, unit: int, parType, own_data=True):
         return self.load_data(unit, self._api.getSolutionSolid, 'getSolutionSolid', own_data=own_data)
 
-    def flux(self, unit, own_data=True):
+    def flux(self, unit: int, own_data=True):
         return self.load_data(unit, self._api.getSolutionFlux, 'getSolutionFlux', own_data=own_data)
 
-    def volume(self, unit, own_data=True):
+    def volume(self, unit: int, own_data=True):
         return self.load_data(unit, self._api.getSolutionVolume, 'getSolutionVolume', own_data=own_data)
 
-    def derivativeInlet(self, unit, own_data=True):
+    def derivativeInlet(self, unit: int, own_data=True):
         return self.load_data(unit, self._api.getSolutionDerivativeInlet, 'getSolutionDerivativeInlet', own_data=own_data)
 
-    def derivativeOutlet(self, unit, own_data=True):
+    def derivativeOutlet(self, unit: int, own_data=True):
         return self.load_data(unit, self._api.getSolutionDerivativeOutlet, 'getSolutionDerivativeOutlet', own_data=own_data)
 
-    def derivativeBulk(self, unit, own_data=True):
+    def derivativeBulk(self, unit: int, own_data=True):
         return self.load_data(unit, self._api.getSolutionDerivativeBulk, 'getSolutionDerivativeBulk', own_data=own_data)
 
-    def derivativeParticle(self, unit, parType, own_data=True):
+    def derivativeParticle(self, unit: int, parType: int, own_data=True):
         return self.load_data(unit, self._api.getSolutionDerivativeParticle, 'getSolutionDerivativeParticle', own_data=own_data)
 
-    def derivativeSolid(self, unit, parType, own_data=True):
+    def derivativeSolid(self, unit: int, parType: int, own_data=True):
         return self.load_data(unit, self._api.getSolutionDerivativeSolid, 'getSolutionDerivativeSolid', own_data=own_data)
 
-    def derivativeFlux(self, unit, own_data=True):
+    def derivativeFlux(self, unit: int, own_data=True):
         return self.load_data(unit, self._api.getSolutionDerivativeFlux, 'getSolutionDerivativeFlux', own_data=own_data)
 
-    def derivativeVolume(self, unit, own_data=True):
+    def derivativeVolume(self, unit: int, own_data=True):
         return self.load_data(unit, self._api.getSolutionDerivativeVolume, 'getSolutionDerivativeVolume', own_data=own_data)
 
-    def sensitivityInlet(self, unit, idx, own_data=True):
+    def sensitivityInlet(self, unit: int, idx, own_data=True):
         return self.load_data(unit, self._api.getSensitivityInlet, 'getSensitivityInlet', idx=idx, own_data=own_data)
 
-    def sensitivityOutlet(self, unit, idx, own_data=True):
+    def sensitivityOutlet(self, unit: int, idx, own_data=True):
         return self.load_data(unit, self._api.getSensitivityOutlet, 'getSensitivityOutlet', idx=idx, own_data=own_data)
 
-    def sensitivityBulk(self, unit, idx, own_data=True):
+    def sensitivityBulk(self, unit: int, idx, own_data=True):
         return self.load_data(unit, self._api.getSensitivityBulk, 'getSensitivityBulk', idx=idx, own_data=own_data)
 
-    def sensitivityParticle(self, unit, idx, parType, own_data=True):
+    def sensitivityParticle(self, unit: int, idx, parType: int, own_data=True):
         return self.load_data(unit, self._api.getSensitivityParticle, 'getSensitivityParticle', idx=idx, parType=parType, own_data=own_data)
 
-    def sensitivitySolid(self, unit, idx, parType, own_data=True):
+    def sensitivitySolid(self, unit: int, idx, parType, own_data=True):
         return self.load_data(unit, self._api.getSensitivitySolid, 'getSensitivitySolid', idx=idx, parType=parType, own_data=own_data)
 
-    def sensitivityFlux(self, unit, idx, own_data=True):
+    def sensitivityFlux(self, unit: int, idx, own_data=True):
         return self.load_data(unit, self._api.getSensitivityFlux, 'getSensitivityFlux', idx=idx, own_data=own_data)
 
-    def sensitivityVolume(self, unit, idx, own_data=True):
+    def sensitivityVolume(self, unit: int, idx, own_data=True):
         return self.load_data(unit, self._api.getSensitivityVolume, 'getSensitivityVolume', idx=idx, own_data=own_data)
 
-    def sensitivityDerivativeInlet(self, unit, idx, own_data=True):
+    def sensitivityDerivativeInlet(self, unit: int, idx, own_data=True):
         return self.load_data(unit, self._api.getSensitivityDerivativeInlet, 'getSensitivityDerivativeInlet', idx=idx, own_data=own_data)
 
-    def sensitivityDerivativeOutlet(self, unit, idx, own_data=True):
+    def sensitivityDerivativeOutlet(self, unit: int, idx, own_data=True):
         return self.load_data(unit, self._api.getSensitivityDerivativeOutlet, 'getSensitivityDerivativeOutlet', idx=idx, own_data=own_data)
 
-    def sensitivityDerivativeBulk(self, unit, idx, own_data=True):
+    def sensitivityDerivativeBulk(self, unit: int, idx, own_data=True):
         return self.load_data(unit, self._api.getSensitivityDerivativeBulk, 'getSensitivityDerivativeBulk', idx=idx, own_data=own_data)
 
-    def sensitivityDerivativeParticle(self, unit, idx, parType, own_data=True):
+    def sensitivityDerivativeParticle(self, unit: int, idx, parType, own_data=True):
         return self.load_data(unit, self._api.getSensitivityDerivativeParticle, 'getSensitivityDerivativeParticle', idx=idx, parType=parType, own_data=own_data)
 
-    def sensitivityDerivativeSolid(self, unit, idx, parType, own_data=True):
+    def sensitivityDerivativeSolid(self, unit: int, idx, parType, own_data=True):
         return self.load_data(unit, self._api.getSensitivityDerivativeSolid, 'getSensitivityDerivativeSolid', idx=idx, parType=parType, own_data=own_data)
 
-    def sensitivityDerivativeFlux(self, unit, idx, own_data=True):
+    def sensitivityDerivativeFlux(self, unit: int, idx, own_data=True):
         return self.load_data(unit, self._api.getSensitivityDerivativeFlux, 'getSensitivityDerivativeFlux', idx=idx, own_data=own_data)
 
-    def sensitivityDerivativeVolume(self, unit, idx, own_data=True):
+    def sensitivityDerivativeVolume(self, unit: int, idx, own_data=True):
         return self.load_data(unit, self._api.getSensitivityDerivativeVolume, 'getSensitivityDerivativeVolume', idx=idx, own_data=own_data)
 
 
@@ -307,11 +339,13 @@ class CadetDLL:
         self._api.deleteDriver(self._driver)
 
 
-    def run(self, filename = None, simulation=None, timeout = None, check=None):
+    def run(self, filename=None, simulation=None, timeout=None, check=None):
         pp = cadet_dll_parameterprovider.PARAMETERPROVIDER(simulation)
 
         self._api.runSimulation(self._driver, ctypes.byref(pp))
         self.res = SimulationResult(self._api, self._driver)
+
+        # TODO: Return if simulation was successful or crashed
         return self.res
 
     def load_solution(self, sim, solution_fun, solution_str):
@@ -329,6 +363,8 @@ class CadetDLL:
                         unit = int(key[-3:])
                         t, out, dims = solution_fun(unit)
 
+                        # Check if t is None -> Error
+
                         if not len(solution.solution_times):
                             solution.solution_times = t
 
@@ -343,6 +379,8 @@ class CadetDLL:
                     if value[f'write_{solution_str}']:
                         unit = int(key[-3:])
                         t, out, dims = solution_fun(unit)
+
+                        # Check if t is None -> Error
 
                         if not len(solution.solution_times):
                             solution.solution_times = t
