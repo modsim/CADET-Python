@@ -120,7 +120,7 @@ def param_provider_get_int_array(reader, name, n_elem, val):
         o = c[n]
         if isinstance(o, list):
             o = numpy.ascontiguousarray(o)
-        if (not isinstance(o, numpy.ndarray)) or (o.dtype != numpy.int) or (not o.flags.c_contiguous):
+        if (not isinstance(o, numpy.ndarray)) or (o.dtype != int) or (not o.flags.c_contiguous):
             return -1
 
         n_elem[0] = ctypes.c_int(o.size)
