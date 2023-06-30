@@ -183,20 +183,19 @@ class SimulationResult:
 
         result = get_solution(*call_args)
 
-        return result, call_outputs
-
-    def process_data(
-            self,
-            result,
-            call_outputs,
-            own_data: bool = True):
-
         if result == _CDT_DATA_NOT_STORED:
             # Call successful, but data is not available
-            return None, None, None
+            return None
         elif result != _CDT_OK:
             # Something else failed
             raise Exception("Error reading data.")
+
+        return call_outputs
+
+    def process_data(
+            self,
+            call_outputs,
+            own_data: bool = True):
 
         shape = []
         dims = []
@@ -220,8 +219,12 @@ class SimulationResult:
             return time, data, dims
 
     def load_and_process(self, *args, own_data=True, **kwargs):
-        result, call_outputs = self.load_data(*args, **kwargs)
-        time, data, dims = self.process_data(result, call_outputs, own_data)
+        call_outputs = self.load_data(*args, **kwargs)
+
+        if call_outputs is None:
+            return None, None, None
+
+        time, data, dims = self.process_data(call_outputs, own_data)
 
         return time, data, dims
 
@@ -288,7 +291,7 @@ class SimulationResult:
             return time, data, dims
 
     def npartypes(self, unitOpId: int, own_data=True):
-        result, call_outputs = self.load_data(
+        call_outputs = self.load_data(
             'getNParTypes',
             unitOpId,
         )
@@ -650,14 +653,14 @@ class CadetDLL:
         self.load_state(sim)
 
     def load_coordinates(self, sim):
-        solution = addict.Dict()
+        coordinates = addict.Dict()
         for unit in range(sim.root.input.model.nunits):
             unit_index = self._get_index_string('unit', unit)
             if 'write_coordinates' in sim.root.input['return'][unit_index].keys():
                 # TODO: Missing CAPI call
                 pass
 
-        return solution
+        sim.root.output.coordinates = coordinates
 
     def load_solution(self, sim):
         solution = addict.Dict()
@@ -681,7 +684,11 @@ class CadetDLL:
             unit_solution.update(self._load_solution_trivial(sim, unit, 'soldot_flux'))
             unit_solution.update(self._load_solution_trivial(sim, unit, 'soldot_volume'))
 
-            solution[unit_index].update(unit_solution)
+            if len(unit_solution) > 1:
+                solution[unit_index].update(unit_solution)
+
+        if len(unit_solution) > 1:
+            sim.root.output.solution = solution
 
         return solution
 
@@ -739,6 +746,8 @@ class CadetDLL:
 
             sensitivity[sens_index].update(unit_sensitivity)
 
+        sim.root.output.sensitivity = sensitivity
+
     def _checks_if_write_is_true(func):
         def wrapper(self, sim, unitOpId, solution_str, *args, **kwargs):
             unit_index = self._get_index_string('unit', unitOpId)
@@ -746,32 +755,46 @@ class CadetDLL:
             if f'write_{solution_str}' not in solution_recorder:
                 return {}
 
-            return func(self, sim, unitOpId, solution_str, *args, **kwargs)
+            solution = func(self, sim, unitOpId, solution_str, *args, **kwargs)
+
+            if solution is None:
+                return {}
+
+            return solution
+
+        return wrapper
+
+    def _loads_data(func):
+        def wrapper(self, sim, unitOpId, solution_str, sensIdx=None, *args, **kwargs):
+            solution_fun = getattr(self.res, solution_str)
+            if sensIdx is None:
+                data = solution_fun(unitOpId)
+            else:
+                data = solution_fun(unitOpId, sensIdx)
+
+            if data is None:
+                return
+
+            solution = func(self, sim, data, unitOpId, solution_str, *args, **kwargs)
+
+            return solution
 
         return wrapper
 
     @_checks_if_write_is_true
-    def _load_solution_trivial(self, sim, unitOpId, solution_str, sensIdx=None):
+    @_loads_data
+    def _load_solution_trivial(self, sim, data, unitOpId, solution_str, sensIdx=None):
         solution = addict.Dict()
-        solution_fun = getattr(self.res, solution_str)
-        if sensIdx is None:
-            t, out, dims = solution_fun(unitOpId)
-        else:
-            t, out, dims = solution_fun(unitOpId, sensIdx)
-
+        t, out, dims = data
         solution[solution_str] = out
 
         return solution
 
     @_checks_if_write_is_true
-    def _load_solution_io(self, sim, unitOpId, solution_str, sensIdx=None):
+    @_loads_data
+    def _load_solution_io(self, sim, data, unitOpId, solution_str, sensIdx=None):
         solution = addict.Dict()
-        solution_fun = getattr(self.res, solution_str)
-
-        if sensIdx is None:
-            t, out, dims = solution_fun(unitOpId)
-        else:
-            t, out, dims = solution_fun(unitOpId, sensIdx)
+        t, out, dims = data
 
         split_components_data = sim.root.input['return'].get('split_components_data', 1)
         split_ports_data = sim.root.input['return'].get('split_ports_data', 1)
@@ -824,15 +847,18 @@ class CadetDLL:
         solution = addict.Dict()
         solution_fun = getattr(self.res, solution_str)
 
-        unit_index = self._get_index_string('unit', unitOpId)
-
         npartype = self.res.npartypes(unitOpId)
 
         for partype in range(npartype):
             if sensIdx is None:
-                t, out, dims = solution_fun(unitOpId, partype)
+                data = solution_fun(unitOpId, partype)
             else:
-                t, out, dims = solution_fun(unitOpId, sensIdx, partype)
+                data = solution_fun(unitOpId, sensIdx, partype)
+
+            if data is None:
+                continue
+
+            t, out, dims = data
 
             if npartype == 1:
                 solution[solution_str] = out
@@ -840,7 +866,13 @@ class CadetDLL:
                 par_index = self._get_index_string('partype', partype)
                 solution[f'{solution_str}_{par_index}'] = out
 
+        if len(solution) == 0:
+            return
+
         return solution
+
+    def _load_particle_type(self, sim, data, unitOpId, solution_str, sensIdx=None):
+        pass
 
     def load_state(self, sim):
         # TODO
