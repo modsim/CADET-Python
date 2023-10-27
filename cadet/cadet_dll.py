@@ -18,6 +18,7 @@ CadetDriver = ctypes.c_void_p
 
 # Values of cdtResult
 _CDT_OK = 0
+_CDT_ERROR_INVALID_INPUTS = -2
 _CDT_DATA_NOT_STORED = -3
 
 
@@ -46,7 +47,8 @@ class CADETAPIV010000_DATA():
     signatures['createDriver'] = ('drv',)
     signatures['deleteDriver'] = (None, 'drv')
     signatures['runSimulation'] = ('return', 'drv', 'parameterProvider')
-    signatures['getNParTypes'] = ('return', 'drv', 'unitOpId', 'nParTypes')
+    signatures['getNumParTypes'] = ('return', 'drv', 'unitOpId', 'nParTypes')
+    signatures['getNumSensitivities'] = ('return', 'drv', 'nSens')
 
     signatures['getSolutionInlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
     signatures['getSolutionOutlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
@@ -89,6 +91,11 @@ class CADETAPIV010000_DATA():
     signatures['getLastSensitivityUnitState'] = ('return', 'drv', 'sensIdx', 'unitOpId', 'state', 'nStates')
     signatures['getLastSensitivityUnitStateTimeDerivative'] = ('return', 'drv', 'sensIdx', 'unitOpId', 'state', 'nStates')
 
+    signatures['getPrimaryCoordinates'] = ('return', 'drv', 'unitOpId', 'coords', 'nCoords')
+    signatures['getSecondaryCoordinates'] = ('return', 'drv', 'unitOpId', 'coords', 'nCoords')
+    signatures['getParticleCoordinates'] = ('return', 'drv', 'unitOpId', 'parType', 'coords', 'nCoords')
+
+    signatures['getSolutionTimes'] = ('return', 'drv', 'time', 'nTime')
 
     lookup_prototype = {
         'return': c_cadet_result,
@@ -98,18 +105,21 @@ class CADETAPIV010000_DATA():
         'parType': ctypes.c_int,
         'time': array_double,
         'data': array_double,
+        'coords': array_double,
         'nTime': point_int,
+        'nCoords': point_int,
         'nPort': point_int,
         'nAxialCells': point_int,
         'nRadialCells': point_int,
         'nParTypes': point_int,
+        'nSens': point_int,
         'nParShells': point_int,
         'nComp': point_int,
         'nBound': point_int,
         'state': array_double,
         'nStates': point_int,
         None: None,
-        'parameterProvider': ctypes.POINTER(cadet_dll_parameterprovider.PARAMETERPROVIDER)
+        'parameterProvider': ctypes.POINTER(cadet_dll_parameterprovider.PARAMETERPROVIDER),
     }
 
     lookup_output_argument_type = {
@@ -120,11 +130,14 @@ class CADETAPIV010000_DATA():
         'nAxialCells': ctypes.c_int,
         'nRadialCells': ctypes.c_int,
         'nParTypes': ctypes.c_int,
+        'nSens': ctypes.c_int,
         'nParShells': ctypes.c_int,
         'nComp': ctypes.c_int,
         'nBound': ctypes.c_int,
         'state': ctypes.POINTER(ctypes.c_double),
         'nStates': ctypes.c_int,
+        'coords': ctypes.POINTER(ctypes.c_double),
+        'nCoords': ctypes.c_int,
     }
 
 
@@ -150,10 +163,10 @@ class SimulationResult:
         self._api = api
         self._driver = driver
 
-    def load_data(
+    def _load_data(
             self,
             get_solution_str: str,
-            unitOpId: int | None,
+            unitOpId: int,
             sensIdx: int = None,
             parType: int = None):
 
@@ -170,7 +183,7 @@ class SimulationResult:
                 continue
             elif key == 'drv':
                 call_args.append(self._driver)
-            elif key == 'unitOpId' and unitOpId is not None:
+            elif key == 'unitOpId':
                 call_args.append(unitOpId)
             elif key == 'sensIdx':
                 call_args.append(sensIdx)
@@ -186,13 +199,27 @@ class SimulationResult:
         if result == _CDT_DATA_NOT_STORED:
             # Call successful, but data is not available
             return None
+        elif result == _CDT_ERROR_INVALID_INPUTS:
+            raise ValueError("Error reading data: Invalid call arguments")
         elif result != _CDT_OK:
             # Something else failed
             raise Exception("Error reading data.")
 
         return call_outputs
 
-    def process_data(
+    def _process_array(
+            self,
+            call_outputs,
+            data_key: str,
+            len_key: str,
+            own_data: bool = True):
+
+        data = numpy.ctypeslib.as_array(call_outputs[data_key], shape=(call_outputs[len_key].value, ))
+        if own_data:
+            return data.copy()
+        return data
+
+    def _process_data(
             self,
             call_outputs,
             own_data: bool = True):
@@ -210,23 +237,34 @@ class SimulationResult:
                 shape.append(call_outputs[dim].value)
                 dims.append(dim)
 
-        data = numpy.ctypeslib.as_array(call_outputs['data'], shape=shape)
-        time = numpy.ctypeslib.as_array(call_outputs['time'], shape=(call_outputs['nTime'].value, ))
+        if 'data' in call_outputs:
+            data = numpy.ctypeslib.as_array(call_outputs['data'], shape=shape)
+            if own_data:
+                data = data.copy()
 
-        if own_data:
-            return time.copy(), data.copy(), dims
-        else:
-            return time, data, dims
+        if 'time' in call_outputs:
+            time = numpy.ctypeslib.as_array(call_outputs['time'], shape=(call_outputs['nTime'].value, ))
+            if own_data:
+                time = time.copy()
 
-    def load_and_process(self, *args, own_data=True, **kwargs):
-        call_outputs = self.load_data(*args, **kwargs)
+        return time, data, dims
+
+    def _load_and_process(self, *args, own_data=True, **kwargs):
+        call_outputs = self._load_data(*args, **kwargs)
 
         if call_outputs is None:
             return None, None, None
 
-        time, data, dims = self.process_data(call_outputs, own_data)
-
+        time, data, dims = self._process_data(call_outputs, own_data)
         return time, data, dims
+
+    def _load_and_process_array(self, data_key: str, len_key: str, *args, own_data=True, **kwargs):
+        call_outputs = self._load_data(*args, **kwargs)
+
+        if call_outputs is None:
+            return None
+
+        return self._process_array(call_outputs, data_key, len_key, own_data)
 
     def load_data_old(
             self,
@@ -290,45 +328,53 @@ class SimulationResult:
         else:
             return time, data, dims
 
-    def npartypes(self, unitOpId: int, own_data=True):
-        call_outputs = self.load_data(
-            'getNParTypes',
+    def npartypes(self, unitOpId: int):
+        call_outputs = self._load_data(
+            'getNumParTypes',
             unitOpId,
         )
 
-        return int(numpy.ctypeslib.as_array(call_outputs['nParTypes']))
+        return int(call_outputs['nParTypes'].value)
+
+    def nsensitivities(self, unitOpId: int):
+        call_outputs = self._load_data(
+            'getNumSensitivities',
+            unitOpId,
+        )
+
+        return int(call_outputs['nSens'].value)
 
     def solution_inlet(self, unitOpId: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getSolutionInlet',
             unitOpId,
             own_data=own_data
         )
 
     def solution_outlet(self, unitOpId: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getSolutionOutlet',
             unitOpId,
             own_data=own_data
         )
 
     def solution_bulk(self, unitOpId: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getSolutionBulk',
             unitOpId,
             own_data=own_data
         )
 
-    def solution_particle(self, unitOpId: int, parType, own_data=True):
-        return self.load_and_process(
+    def solution_particle(self, unitOpId: int, parType: int, own_data=True):
+        return self._load_and_process(
             'getSolutionParticle',
             unitOpId,
             parType=parType,
             own_data=own_data
         )
 
-    def solution_solid(self, unitOpId: int, parType, own_data=True):
-        return self.load_and_process(
+    def solution_solid(self, unitOpId: int, parType: int, own_data=True):
+        return self._load_and_process(
             'getSolutionSolid',
             unitOpId,
             parType=parType,
@@ -336,42 +382,42 @@ class SimulationResult:
         )
 
     def solution_flux(self, unitOpId: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getSolutionFlux',
             unitOpId,
             own_data=own_data
         )
 
     def solution_volume(self, unitOpId: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getSolutionVolume',
             unitOpId,
             own_data=own_data
         )
 
     def soldot_inlet(self, unitOpId: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getSolutionDerivativeInlet',
             unitOpId,
             own_data=own_data
         )
 
     def soldot_outlet(self, unitOpId: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getSolutionDerivativeOutlet',
             unitOpId,
             own_data=own_data
         )
 
     def soldot_bulk(self, unitOpId: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getSolutionDerivativeBulk',
             unitOpId,
             own_data=own_data
         )
 
     def soldot_particle(self, unitOpId: int, parType: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getSolutionDerivativeParticle',
             unitOpId,
             parType=parType,
@@ -379,7 +425,7 @@ class SimulationResult:
         )
 
     def soldot_solid(self, unitOpId: int, parType: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getSolutionDerivativeSolid',
             unitOpId,
             parType=parType,
@@ -387,125 +433,125 @@ class SimulationResult:
         )
 
     def soldot_flux(self, unitOpId: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getSolutionDerivativeFlux',
             unitOpId,
             own_data=own_data
         )
 
     def soldot_volume(self, unitOpId: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getSolutionDerivativeVolume',
             unitOpId,
             own_data=own_data
         )
 
-    def sens_inlet(self, unitOpId: int, sensIdx, own_data=True):
-        return self.load_and_process(
+    def sens_inlet(self, unitOpId: int, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getSensitivityInlet',
             unitOpId,
             sensIdx=sensIdx,
             own_data=own_data
         )
 
-    def sens_outlet(self, unitOpId: int, sensIdx, own_data=True):
-        return self.load_and_process(
+    def sens_outlet(self, unitOpId: int, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getSensitivityOutlet',
             unitOpId,
             sensIdx=sensIdx,
             own_data=own_data
         )
 
-    def sens_bulk(self, unitOpId: int, sensIdx, own_data=True):
-        return self.load_and_process(
+    def sens_bulk(self, unitOpId: int, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getSensitivityBulk',
             unitOpId,
             sensIdx=sensIdx,
             own_data=own_data
         )
 
-    def sens_particle(self, unitOpId: int, sensIdx, parType: int, own_data=True):
-        return self.load_and_process(
+    def sens_particle(self, unitOpId: int, sensIdx: int, parType: int, own_data=True):
+        return self._load_and_process(
             'getSensitivityParticle',
             unitOpId,
             sensIdx=sensIdx,
             parType=parType, own_data=own_data
         )
 
-    def sens_solid(self, unitOpId: int, sensIdx, parType, own_data=True):
-        return self.load_and_process(
+    def sens_solid(self, unitOpId: int, sensIdx: int, parType: int, own_data=True):
+        return self._load_and_process(
             'getSensitivitySolid',
             unitOpId,
             sensIdx=sensIdx,
             parType=parType, own_data=own_data
         )
 
-    def sens_flux(self, unitOpId: int, sensIdx, own_data=True):
-        return self.load_and_process(
+    def sens_flux(self, unitOpId: int, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getSensitivityFlux',
             unitOpId,
             sensIdx=sensIdx,
             own_data=own_data
         )
 
-    def sens_volume(self, unitOpId: int, sensIdx, own_data=True):
-        return self.load_and_process(
+    def sens_volume(self, unitOpId: int, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getSensitivityVolume',
             unitOpId,
             sensIdx=sensIdx,
             own_data=own_data
         )
 
-    def sensdot_inlet(self, unitOpId: int, sensIdx, own_data=True):
-        return self.load_and_process(
+    def sensdot_inlet(self, unitOpId: int, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getSensitivityDerivativeInlet',
             unitOpId,
             sensIdx=sensIdx,
             own_data=own_data
         )
 
-    def sensdot_outlet(self, unitOpId: int, sensIdx, own_data=True):
-        return self.load_and_process(
+    def sensdot_outlet(self, unitOpId: int, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getSensitivityDerivativeOutlet',
             unitOpId,
             sensIdx=sensIdx,
             own_data=own_data
         )
 
-    def sensdot_bulk(self, unitOpId: int, sensIdx, own_data=True):
-        return self.load_and_process(
+    def sensdot_bulk(self, unitOpId: int, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getSensitivityDerivativeBulk',
             unitOpId,
             sensIdx=sensIdx,
             own_data=own_data
         )
 
-    def sensdot_particle(self, unitOpId: int, sensIdx, parType, own_data=True):
-        return self.load_and_process(
+    def sensdot_particle(self, unitOpId: int, sensIdx: int, parType: int, own_data=True):
+        return self._load_and_process(
             'getSensitivityDerivativeParticle',
             unitOpId,
             sensIdx=sensIdx,
             parType=parType, own_data=own_data
         )
 
-    def sensdot_solid(self, unitOpId: int, sensIdx, parType, own_data=True):
-        return self.load_and_process(
+    def sensdot_solid(self, unitOpId: int, sensIdx: int, parType: int, own_data=True):
+        return self._load_and_process(
             'getSensitivityDerivativeSolid',
             unitOpId,
             sensIdx=sensIdx,
             parType=parType, own_data=own_data
         )
 
-    def sensdot_flux(self, unitOpId: int, sensIdx, own_data=True):
-        return self.load_and_process(
+    def sensdot_flux(self, unitOpId: int, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getSensitivityDerivativeFlux',
             unitOpId,
             sensIdx=sensIdx,
             own_data=own_data
         )
 
-    def sensdot_volume(self, unitOpId: int, sensIdx, own_data=True):
-        return self.load_and_process(
+    def sensdot_volume(self, unitOpId: int, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getSensitivityDerivativeVolume',
             unitOpId,
             sensIdx=sensIdx,
@@ -513,58 +559,95 @@ class SimulationResult:
         )
 
     def last_state_y(self, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getLastState',
             own_data=own_data
         )
 
-    def last_state_ydot(self, sensIdx, own_data=True):
-        return self.load_and_process(
+    def last_state_ydot(self, own_data=True):
+        return self._load_and_process(
             'getLastStateDerivative',
             own_data=own_data
         )
 
     def last_state_y_unit(self, unitOpId: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getLastUnitState',
             unitOpId,
             own_data=own_data
         )
 
     def last_state_ydot_unit(self, unitOpId: int, own_data=True):
-        return self.load_and_process(
+        return self._load_and_process(
             'getLastUnitStateTimeDerivative',
             unitOpId,
             own_data=own_data
         )
 
-    def last_state_sens(self, sensIdx, own_data=True):
-        return self.load_and_process(
+    def last_state_sens(self, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getLastSensitivityState',
             sensIdx=sensIdx,
             own_data=own_data
         )
 
-    def last_state_sensdot(self, sensIdx, own_data=True):
-        return self.load_and_process(
+    def last_state_sensdot(self, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getLastSensitivityStateTimeDerivative',
             sensIdx=sensIdx,
             own_data=own_data
         )
 
-    def last_state_sens_unit(self, unitOpId: int, sensIdx, own_data=True):
-        return self.load_and_process(
+    def last_state_sens_unit(self, unitOpId: int, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getLastSensitivityUnitState',
             unitOpId,
             sensIdx=sensIdx,
             own_data=own_data
         )
 
-    def last_state_sensdot_unit(self, unitOpId: int, sensIdx, own_data=True):
-        return self.load_and_process(
+    def last_state_sensdot_unit(self, unitOpId: int, sensIdx: int, own_data=True):
+        return self._load_and_process(
             'getLastSensitivityUnitStateTimeDerivative',
             unitOpId,
             sensIdx=sensIdx,
+            own_data=own_data
+        )
+
+    def primary_coordinates(self, unitOpId: int, own_data=True):
+        return self._load_and_process_array(
+            'coords',
+            'nCoords',
+            'getPrimaryCoordinates',
+            unitOpId,
+            own_data=own_data
+        )
+
+    def secondary_coordinates(self, unitOpId: int, own_data=True):
+        return self._load_and_process_array(
+            'coords',
+            'nCoords',
+            'getSecondaryCoordinates',
+            unitOpId,
+            own_data=own_data
+        )
+
+    def particle_coordinates(self, unitOpId: int, parType: int, own_data=True):
+        return self._load_and_process_array(
+            'coords',
+            'nCoords',
+            'getParticleCoordinates',
+            unitOpId,
+            parType=parType,
+            own_data=own_data
+        )
+
+    def solution_times(self, own_data=True):
+        return self._load_and_process_array(
+            'time',
+            'nTime',
+            'getSolutionTimes',
+            None,
             own_data=own_data
         )
 
@@ -623,6 +706,7 @@ class CadetDLL:
         cdtGetAPIv010000(ctypes.byref(self._api))
 
         self._driver = self._api.createDriver()
+        self.res = None
 
     def clear(self):
         if hasattr(self, "res"):
@@ -644,21 +728,38 @@ class CadetDLL:
         return self.res
 
     def load_results(self, sim):
-        # TODO: solution time
-        # sim.root.output.solution.solution_time = ???
+        if self.res is None:
+            return
+
+        self.load_solution_times(sim)
         self.load_coordinates(sim)
         # TODO: Crashes when simulation includes sensitivities
         self.load_solution(sim)
         self.load_sensitivity(sim)
         self.load_state(sim)
 
+    def load_solution_times(self, sim):
+        if 'write_solution_times' in sim.root.input['return']:
+            sim.root.output.solution.solution_times = self.res.solution_times()
+
     def load_coordinates(self, sim):
         coordinates = addict.Dict()
         for unit in range(sim.root.input.model.nunits):
             unit_index = self._get_index_string('unit', unit)
             if 'write_coordinates' in sim.root.input['return'][unit_index].keys():
-                # TODO: Missing CAPI call
-                pass
+                pc = self.res.primary_coordinates(unit)
+                if pc:
+                    coordinates[unit_index]['axial_coordinates'] = pc
+
+                sc = self.res.secondary_coordinates(unit)
+                if sc:
+                    coordinates[unit_index]['radial_coordinates'] = sc
+
+                num_par_types = self.res.npartypes(unit)
+                for pt in range(num_par_types):
+                    par_coords = self.res.particle_coordinates(unit, pt)
+                    if par_coords:
+                        coordinates[unit_index][self._get_index_string('particle_coordinates', pt)] = par_coords
 
         sim.root.output.coordinates = coordinates
 
@@ -751,8 +852,8 @@ class CadetDLL:
     def _checks_if_write_is_true(func):
         def wrapper(self, sim, unitOpId, solution_str, *args, **kwargs):
             unit_index = self._get_index_string('unit', unitOpId)
-            solution_recorder = sim.root.input['return'][unit_index].keys()
-            if f'write_{solution_str}' not in solution_recorder:
+            unit_return_config = sim.root.input['return'][unit_index].keys()
+            if f'write_{solution_str}' not in unit_return_config:
                 return {}
 
             solution = func(self, sim, unitOpId, solution_str, *args, **kwargs)
@@ -785,7 +886,7 @@ class CadetDLL:
     @_loads_data
     def _load_solution_trivial(self, sim, data, unitOpId, solution_str, sensIdx=None):
         solution = addict.Dict()
-        t, out, dims = data
+        _, out, _ = data
         solution[solution_str] = out
 
         return solution
@@ -794,7 +895,7 @@ class CadetDLL:
     @_loads_data
     def _load_solution_io(self, sim, data, unitOpId, solution_str, sensIdx=None):
         solution = addict.Dict()
-        t, out, dims = data
+        _, out, dims = data
 
         split_components_data = sim.root.input['return'].get('split_components_data', 1)
         split_ports_data = sim.root.input['return'].get('split_ports_data', 1)
@@ -858,7 +959,7 @@ class CadetDLL:
             if data is None:
                 continue
 
-            t, out, dims = data
+            _, out, dims = data
 
             if npartype == 1:
                 solution[solution_str] = out
@@ -875,8 +976,14 @@ class CadetDLL:
         pass
 
     def load_state(self, sim):
-        # TODO
-        pass
+        if 'write_solution_last' in sim.root.input['return']:
+            sim.root.output['last_state_y'] = self.res.lastState()
+            sim.root.output['last_state_ydot'] = self.res.lastStateDerivative()
+
+        if 'write_sens_last' in sim.root.input['return']:
+            for idx in range(self.res.num_sensitivities()):
+                sim.root.output[self._get_index_string('last_state_sensy', idx)] = self.res.lastSensitivityState(idx)
+                sim.root.output[self._get_index_string('last_state_sensydot', idx)] = self.res.lastSensitivityStateDerivative(idx)
 
     @staticmethod
     def _get_index_string(prefix, index):
