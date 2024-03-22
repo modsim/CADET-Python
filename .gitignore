@@ -1,23 +1,12 @@
-﻿################################################################################
-# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
-################################################################################
-
+﻿
 /.vs
 *.h5
+*.csv
 /__pycache__
-/fix_h5.py
-/HICWang.py
-/Pilot_Bypass_noBT_noC.py
-/Test.py
-/test_lwe.py
-/comp2_1.csv
-/comp2_2.csv
-/comp2_comb.csv
-/comp2_fraction.csv
-/comp_1.csv
-/ron.py
 /CADET.egg-info
 /dist
 /build/lib/cadet
 /cadet/__pycache__
 /CADET_Python.egg-info
+.idea
+*tmp*

@@ -1,31 +1,17 @@
-#!/usr/bin/env python3.6
+import os
 
-# Everything in here is based on CADET3.pdf in the same directory
-# 
-
-# Basic Python CADET file based interface compatible with CADET 3.0 and 3.1
-# Some additional fields have been added so that the generated simulations will also
-# work in 3.1 and where those differences are I have noted them.
-# This whole file follows the CADET pdf documentation. I have broken the system up into many
-# functions in order to make it simpler and to make code reuse easier.
-
-# Normally the main function is placed at the bottom of the file but I have placed it at the top so that
-# This interface is more like a tutorial and can be read from the top down and any given function
-# can be drilled into to learn more about it.
-
-import numpy
-
-#use to render results
 import matplotlib.pyplot as plt
+import numpy
+import pandas
+import pytest
 
 from cadet import Cadet
-Cadet.cadet_path = "C:/Users/kosh_000/cadet_build/CADET-dev/cadet3.1-win7-x64/bin/cadet-cli.exe"
+from tests import common
 
-import common
-import pandas
 
 def gen_fraction_times(start, stop, bins):
-    return numpy.linspace(start, stop, bins+1, endpoint=True)
+    return numpy.linspace(start, stop, bins + 1, endpoint=True)
+
 
 def gen_fractions(fraction_times, sim):
     nComp = sim.root.input.model.unit_000.ncomp
@@ -36,24 +22,29 @@ def gen_fractions(fraction_times, sim):
 
     for idx, (start, stop) in enumerate(zip(fraction_times[:-1], fraction_times[1:])):
         selected = (times >= start) & (times <= stop)
-        temp = {'Start':start, 'Stop':stop}
+        temp = {'Start': start, 'Stop': stop}
         for comp in range(nComp):
             local_times = times[selected]
             local_values = sim.root.output.solution.unit_001["solution_outlet_comp_%03d" % comp][selected]
-            
+
             temp[str(comp)] = numpy.trapz(local_values, local_times) / (stop - start)
         df = df.append(temp, ignore_index=True)
     return df
 
+
 def main():
+    if not os.path.exists("tmp"):
+        os.makedirs("tmp")
     simulation = Cadet(common.common.root)
-    simulation.filename = "MSSMA_2comp.h5"
+    simulation.filename = "tmp/MSSMA_2comp.h5"
     createSimulation(simulation)
     simulation.save()
     data = simulation.run()
     print(data)
     simulation.load()
     plotSimulation(simulation)
+    return simulation
+
 
 def createSimulation(simulation):
     root = simulation.root
@@ -97,18 +88,18 @@ def createSimulation(simulation):
     root.input.model.unit_001.par_surfdiffusion = [0.0, 0.0, 0.0, 0.0, 0.0]
     root.input.model.unit_001.unit_type = 'GENERAL_RATE_MODEL'
     root.input.model.unit_001.velocity = 0.001
-    
+
     root.input.model.unit_001.adsorption.is_kinetic = 1
     root.input.model.unit_001.adsorption.mssma_ka = [0.0, 1E11, 8E6, 1E11, 8E6]
     root.input.model.unit_001.adsorption.mssma_kd = [0.0, 6E11, 2E16, 6E11, 2E16]
     root.input.model.unit_001.adsorption.mssma_lambda = 225
     root.input.model.unit_001.adsorption.mssma_nu = [0.0, 10, 25, 20, 50]
-    root.input.model.unit_001.adsorption.mssma_sigma = [0.0, 48, 66, 48*2, 66*2]
+    root.input.model.unit_001.adsorption.mssma_sigma = [0.0, 48, 66, 48 * 2, 66 * 2]
     root.input.model.unit_001.adsorption.mssma_refq = 225
     root.input.model.unit_001.adsorption.mssma_refc0 = 520.0
     root.input.model.unit_001.adsorption.mssma_rates = [0.0, 0.0, 1e20, 10, 0.0, 0.0, 1e20, 10, 0.0]
 
-    root.input.model.unit_001.discretization.nbound = [1, 2,2]
+    root.input.model.unit_001.discretization.nbound = [1, 2, 2]
     root.input.model.unit_001.discretization.ncol = 50
     root.input.model.unit_001.discretization.npar = 5
 
@@ -122,12 +113,14 @@ def createSimulation(simulation):
 
     root.input.solver.consistent_init_mode = 3
 
+
 def plotSimulation(simulation):
     f, (ax1, ax2) = plt.subplots(1, 2, figsize=[16, 8])
     plotInlet(ax1, simulation)
     plotOutlet(ax2, simulation)
     f.tight_layout()
-    plt.show()
+    plt.savefig("tmp/MSSMA.png")
+
 
 def plotInlet(axis, simulation):
     solution_times = simulation.root.output.solution.solution_times
@@ -139,7 +132,7 @@ def plotInlet(axis, simulation):
     axis.set_title("Inlet")
     axis.plot(solution_times, inlet_salt, 'b-', label="Salt")
     axis.set_xlabel('time (s)')
-        
+
     # Make the y-axis label, ticks and tick labels match the line color.
     axis.set_ylabel('mMol Salt', color='b')
     axis.tick_params('y', colors='b')
@@ -149,7 +142,6 @@ def plotInlet(axis, simulation):
     axis2.plot(solution_times, inlet_p2, 'g-', label="P2")
     axis2.set_ylabel('mMol Protein', color='r')
     axis2.tick_params('y', colors='r')
-
 
     lines, labels = axis.get_legend_handles_labels()
     lines2, labels2 = axis2.get_legend_handles_labels()
@@ -164,22 +156,22 @@ def plotOutlet(axis, simulation):
     outlet_p2 = simulation.root.output.solution.unit_002.solution_outlet_comp_002
 
     data = numpy.vstack([solution_times, outlet_p1]).transpose()
-    numpy.savetxt('comp2_1.csv', data, delimiter=',')
+    numpy.savetxt('tmp/comp2_1.csv', data, delimiter=',')
 
     data = numpy.vstack([solution_times, outlet_p2]).transpose()
-    numpy.savetxt('comp2_2.csv', data, delimiter=',')
+    numpy.savetxt('tmp/comp2_2.csv', data, delimiter=',')
 
     data = numpy.vstack([solution_times, outlet_p1 + outlet_p2]).transpose()
-    numpy.savetxt('comp2_comb.csv', data, delimiter=',')
+    numpy.savetxt('tmp/comp2_comb.csv', data, delimiter=',')
 
     fraction_times = gen_fraction_times(6000, 14000, 10)
     df = gen_fractions(fraction_times, simulation)
-    df.to_csv("comp2_fraction.csv", columns=('Start', 'Stop', '1'), index=False)
+    df.to_csv("tmp/comp2_fraction.csv", columns=('Start', 'Stop', '1'), index=False)
 
     axis.set_title("Output")
     axis.plot(solution_times, outlet_salt, 'b-', label="Salt")
     axis.set_xlabel('time (s)')
-        
+
     # Make the y-axis label, ticks and tick labels match the line color.
     axis.set_ylabel('mMol Salt', color='b')
     axis.tick_params('y', colors='b')
@@ -190,13 +182,20 @@ def plotOutlet(axis, simulation):
     axis2.set_ylabel('mMol Protein', color='r')
     axis2.tick_params('y', colors='r')
 
-
     lines, labels = axis.get_legend_handles_labels()
     lines2, labels2 = axis2.get_legend_handles_labels()
     axis2.legend(lines + lines2, labels + labels2, loc=0)
 
 
+@pytest.mark.slow
+def test_MSSMA_2comp():
+    sim = main()
+    assert isinstance(sim.root.output.solution.unit_002.solution_outlet_comp_001, numpy.ndarray)
+    assert isinstance(sim.root.output.solution.unit_002.solution_outlet_comp_000, numpy.ndarray)
+
+
 if __name__ == "__main__":
     import sys
+
     print(sys.version)
     main()

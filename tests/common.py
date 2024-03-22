@@ -7,11 +7,9 @@ root = common.root
 root.input.model.solver.gs_type = 1
 root.input.model.solver.max_krylov = 0
 root.input.model.solver.max_restarts = 10
-root.input.model.solver.schur_safety  = 1e-8
+root.input.model.solver.schur_safety = 1e-8
 
-#CADET 3.1 and CADET-dev flags are in here so that it works with both
-#CADET-dev removed column from the name on the inputs and outputs since for many
-#operations it no longer makes sense
+# CADET 3.1 and CADET-dev flags are in here so that it works with both
 root.input['return'].write_solution_times = 1
 root.input['return'].split_components_data = 1
 root.input['return'].unit_000.write_sens_bulk = 0

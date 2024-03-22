@@ -1,21 +1,24 @@
-from addict import Dict
-
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
-    import h5py
-import numpy
-import subprocess
-import pprint
 import copy
 import json
+import os
+import platform
+import pprint
+import shutil
+import subprocess
+import warnings
+from pathlib import Path
+
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    import h5py
+import numpy
+from addict import Dict
 
 import filelock
 import contextlib
 
-from pathlib import Path
-
 from cadet.cadet_dll import CadetDLL
+
 
 class H5():
     pp = pprint.PrettyPrinter(indent=4)
@@ -117,9 +120,11 @@ class H5():
                 obj = obj[i]
         obj[parts[-1]] = value
 
+
 def is_dll(value):
     suffix = Path(value).suffix
     return suffix in {'.so', '.dll'}
+
 
 class CadetMeta(type):
     _cadet_runner_class = None
@@ -144,7 +149,7 @@ class CadetMeta(type):
             del cls._cadet_runner_class
 
         if is_dll(value):
-            cls._cadet_runner_class  = CadetDLL(value)
+            cls._cadet_runner_class = CadetDLL(value)
             cls._is_file_class = False
         else:
             cls._cadet_runner_class = CadetFile(value)
@@ -154,13 +159,18 @@ class CadetMeta(type):
     def cadet_path(cls):
         del cls._cadet_runner_class
 
+
 class Cadet(H5, metaclass=CadetMeta):
-    #cadet_path must be set in order for simulations to run
+    # cadet_path must be set in order for simulations to run
     def __init__(self, *data):
         super().__init__(*data)
         self._cadet_runner = None
         self.return_information = None
         self._is_file = None
+        self.cadet_dll_path = None
+        self.cadet_create_lwe_path = None
+        self.cadet_cli_path = None
+        self._install_path = None
 
     @property
     def is_file(self):
@@ -173,8 +183,10 @@ class Cadet(H5, metaclass=CadetMeta):
     def cadet_runner(self):
         if self._cadet_runner is not None:
             return self._cadet_runner
-        if self._cadet_runner_class is not None:
+        if hasattr(self, "_cadet_runner_class") and self._cadet_runner_class is not None:
             return self._cadet_runner_class
+        self.autodetect_cadet()
+        return self._cadet_runner
 
     @property
     def cadet_path(self):
@@ -188,7 +200,7 @@ class Cadet(H5, metaclass=CadetMeta):
             del self._cadet_runner
 
         if is_dll(value):
-            self._cadet_runner  = CadetDLL(value)
+            self._cadet_runner = CadetDLL(value)
             self._is_file = False
         else:
             self._cadet_runner = CadetFile(value)
@@ -197,6 +209,137 @@ class Cadet(H5, metaclass=CadetMeta):
     @cadet_path.deleter
     def cadet_path(self):
         del self._cadet_runner
+
+    def autodetect_cadet(self):
+        """
+        Autodetect installation CADET based on operating system and API usage.
+
+        Returns
+        -------
+        cadet_root : Path
+            Installation path of the CADET program.
+        """
+        executable = 'cadet-cli'
+        if platform.system() == 'Windows':
+            executable += '.exe'
+
+        # Searching for the executable in system path
+        path = shutil.which(executable)
+
+        if path is None:
+            raise FileNotFoundError(
+                "Could not autodetect CADET installation. Please provide path."
+            )
+
+        cli_path = Path(path)
+
+        cadet_root = None
+        if cli_path is not None:
+            cadet_root = cli_path.parent.parent
+            self.install_path = cadet_root
+
+        return cadet_root
+
+    @property
+    def install_path(self):
+        """str: Path to the installation of CADET.
+
+        This can either be the root directory of the installation or the path to the
+        executable file 'cadet-cli'. If a file path is provided, the root directory will
+        be inferred.
+
+        Raises
+        ------
+        FileNotFoundError
+            If CADET cannot be found at the specified path.
+
+        Warnings
+        --------
+        If the specified install_path is not the root of the CADET installation, it will
+        be inferred from the file path.
+
+        See Also
+        --------
+        check_cadet
+        """
+        return self._install_path
+
+    @install_path.setter
+    def install_path(self, install_path):
+        """
+        Set the installation path of CADET.
+
+        Parameters
+        ----------
+        install_path : str or Path
+            Path to the root of the CADET installation.
+            It should either be the root directory of the installation or the path
+            to the executable file 'cadet-cli'.
+            If a file path is provided, the root directory will be inferred.
+        """
+        if install_path is None:
+            self._install_path = None
+            self.cadet_cli_path = None
+            self.cadet_dll_path = None
+            self.cadet_create_lwe_path = None
+            return
+
+        install_path = Path(install_path)
+
+        if install_path.is_file():
+            cadet_root = install_path.parent.parent
+            warnings.warn(
+                "The specified install_path is not the root of the CADET installation. "
+                "It has been inferred from the file path."
+            )
+        else:
+            cadet_root = install_path
+
+        self._install_path = cadet_root
+
+        cli_executable = 'cadet-cli'
+        lwe_executable = 'createLWE'
+
+        if platform.system() == 'Windows':
+            cli_executable += '.exe'
+            lwe_executable += '.exe'
+
+        cadet_cli_path = cadet_root / 'bin' / cli_executable
+        if cadet_cli_path.is_file():
+            self.cadet_cli_path = cadet_cli_path
+            self.cadet_path = cadet_cli_path
+        else:
+            raise FileNotFoundError(
+                "CADET could not be found. Please check the path"
+            )
+
+        cadet_create_lwe_path = cadet_root / 'bin' / lwe_executable
+        if cadet_create_lwe_path.is_file():
+            self.cadet_create_lwe_path = cadet_create_lwe_path.as_posix()
+
+        if platform.system() == 'Windows':
+            dll_path = cadet_root / 'bin' / 'cadet.dll'
+            dll_debug_path = cadet_root / 'bin' / 'cadet_d.dll'
+        else:
+            dll_path = cadet_root / 'lib' / 'lib_cadet.so'
+            dll_debug_path = cadet_root / 'lib' / 'lib_cadet_d.so'
+
+        # Look for debug dll if dll is not found.
+        if not dll_path.is_file() and dll_debug_path.is_file():
+            dll_path = dll_debug_path
+
+        # Look for debug dll if dll is not found.
+        if dll_path.is_file():
+            self.cadet_dll_path = dll_path.as_posix()
+
+        if platform.system() != 'Windows':
+            try:
+                cadet_lib_path = cadet_root / 'lib'
+                if cadet_lib_path.as_posix() not in os.environ['LD_LIBRARY_PATH']:
+                    os.environ['LD_LIBRARY_PATH'] += \
+                        os.pathsep + cadet_lib_path.as_posix()
+            except KeyError:
+                os.environ['LD_LIBRARY_PATH'] = cadet_lib_path.as_posix()
 
     def transform(self, x):
         return str.upper(x)
@@ -209,14 +352,14 @@ class Cadet(H5, metaclass=CadetMeta):
         if runner is not None:
             runner.load_results(self)
 
-    def run(self, timeout = None, check=None):
+    def run(self, timeout=None, check=None):
         data = self.cadet_runner.run(simulation=self.root.input, filename=self.filename, timeout=timeout, check=check)
-        #self.return_information = data
+        # self.return_information = data
         return data
 
-    def run_load(self, timeout = None, check=None, clear=True):
+    def run_load(self, timeout=None, check=None, clear=True):
         data = self.cadet_runner.run(simulation=self.root.input, filename=self.filename, timeout=timeout, check=check)
-        #self.return_information = data
+        # self.return_information = data
         self.load_results()
         if clear:
             self.clear()
@@ -227,14 +370,15 @@ class Cadet(H5, metaclass=CadetMeta):
         if runner is not None:
             runner.clear()
 
+
 class CadetFile:
 
     def __init__(self, cadet_path):
         self.cadet_path = cadet_path
 
-    def run(self, filename = None, simulation=None, timeout = None, check=None):
+    def run(self, filename=None, simulation=None, timeout=None, check=None):
         if filename is not None:
-            data = subprocess.run([self.cadet_path, filename], timeout = timeout, check=check, capture_output=True)
+            data = subprocess.run([self.cadet_path, filename], timeout=timeout, check=check, capture_output=True)
             return data
         else:
             print("Filename must be set before run can be used")
@@ -245,9 +389,10 @@ class CadetFile:
     def load_results(self, sim):
         sim.load(paths=["/meta", "/output"], update=True)
 
+
 def convert_from_numpy(data, func):
     ans = Dict()
-    for key_original,item in data.items():
+    for key_original, item in data.items():
         key = func(key_original)
         if isinstance(item, numpy.ndarray):
             item = item.tolist()
@@ -264,15 +409,17 @@ def convert_from_numpy(data, func):
             ans[key] = item
     return ans
 
-def recursively_load_dict( data, func):
+
+def recursively_load_dict(data, func):
     ans = Dict()
-    for key_original,item in data.items():
+    for key_original, item in data.items():
         key = func(key_original)
         if isinstance(item, dict):
             ans[key] = recursively_load_dict(item, func)
         else:
             ans[key] = item
     return ans
+
 
 def set_path(obj, path, value):
     "paths need to be broken up so that subobjects are correctly made"
@@ -285,7 +432,8 @@ def set_path(obj, path, value):
 
     temp[path[-1]] = value
 
-def recursively_load( h5file, path, func, paths):
+
+def recursively_load(h5file, path, func, paths):
     ans = Dict()
     if paths is not None:
         for path in paths:
@@ -306,8 +454,8 @@ def recursively_load( h5file, path, func, paths):
                 ans[key] = recursively_load(h5file, local_path + '/', func, None)
     return ans
 
-def recursively_save(h5file, path, dic, func):
 
+def recursively_save(h5file, path, dic, func):
     if not isinstance(path, str):
         raise ValueError("path must be a string")
     if not isinstance(h5file, h5py._hl.files.File):

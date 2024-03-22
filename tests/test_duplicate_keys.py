@@ -1,5 +1,6 @@
-import pytest
 import tempfile
+
+import pytest
 
 from cadet import Cadet
 

@@ -10,23 +10,50 @@ on:
 jobs:
   test-job:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.9", "3.10", "3.11"]
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+
+    - name: Get Date
+      id: get-date
+      run: echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Setup Conda Environment
+      uses: conda-incubator/setup-miniconda@v3
       with:
-        python-version: ${{ matrix.python-version }}
+        miniforge-variant: Mambaforge
+        use-mamba: true
+        activate-environment: cadet-python
+        channels: conda-forge,
+
+    - name: Cache conda
+      uses: actions/cache@v3
+      env:
+        # Increase this value to reset cache if environment.yml has not changed
+        CACHE_NUMBER: 0
+      with:
+        path: ${{ env.CONDA }}/envs
+        key: python_${{ matrix.python-version }}-${{ steps.get-date.outputs.today }}-${{ env.CACHE_NUMBER }}
+
     - name: Test Wheel install and import
       run: |
+        mamba install python==${{ matrix.python-version }}
         pip install wheel
         python setup.py bdist_wheel
         cd dist
         pip install CADET_Python*.whl
         python -c "import cadet; print(cadet.__version__)"
+        cd ..
     - name: Test with pytest
       run: |
-        pip install pytest
-        pytest tests --rootdir=tests
+        pip install .[testing]
+        mamba install cadet -c conda-forge
+        pytest tests --rootdir=tests -m "not slow"

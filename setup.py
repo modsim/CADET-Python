@@ -24,5 +24,12 @@ setuptools.setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
+    extras_require={
+        "testing": [
+            "pytest",
+            "matplotlib",
+            "pandas",
+        ],
+    },
     python_requires='>=3.7',
 ) 
