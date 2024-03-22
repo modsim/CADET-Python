@@ -77,6 +77,32 @@ class H5():
             else:
                 self.root = data
 
+    def save_as_python_script(self, filename: str, only_return_pythonic_representation=False):
+        if not filename.endswith(".py"):
+            raise Warning(f"The filename given to .save_as_python_script isn't a python file name.")
+
+        code_lines_list = [
+            "import numpy",
+            "from cadet import Cadet",
+            "",
+            "sim = Cadet()",
+            "root = sim.root",
+        ]
+
+        code_lines_list = recursively_turn_dict_to_python_list(dictionary=self.root,
+                                                               current_lines_list=code_lines_list,
+                                                               prefix="root")
+
+        filename_for_reproduced_h5_file = filename.replace(".py", ".h5")
+        code_lines_list.append(f"sim.filename = '{filename_for_reproduced_h5_file}'")
+        code_lines_list.append("sim.save()")
+
+        if not only_return_pythonic_representation:
+            with open(filename, "w") as handle:
+                handle.writelines([line + "\n" for line in code_lines_list])
+        else:
+            return code_lines_list
+
     def append(self, lock=False):
         "This can only be used to write new keys to the system, this is faster than having to read the data before writing it"
         if self.filename is not None:
@@ -347,3 +373,71 @@ def recursively_save(h5file, path, dic, func):
                     raise KeyError(f'Name conflict with upper and lower case entries for key "{path}{key}".')
                 else:
                     raise
+
+
+def recursively_turn_dict_to_python_list(dictionary: dict, current_lines_list: list = None, prefix: str = None):
+    """
+    Recursively turn a nested dictionary or addict.Dict into a list of Python code that
+    can generate the nested dictionary.
+
+    :param dictionary:
+    :param current_lines_list:
+    :param prefix_list:
+    :return: list of Python code lines
+    """
+
+    def merge_to_absolute_key(prefix, key):
+        """
+        Combine key and prefix to "prefix.key" except if there is no prefix, then return key
+        """
+        if prefix is None:
+            return key
+        else:
+            return f"{prefix}.{key}"
+
+    def clean_up_key(absolute_key: str):
+        """
+        Remove problematic phrases from key, such as blank "return"
+
+        :param absolute_key:
+        :return:
+        """
+        absolute_key = absolute_key.replace(".return", "['return']")
+        return absolute_key
+
+    def get_pythonic_representation_of_value(value):
+        """
+        Use repr() to get a pythonic representation of the value
+        and add "np." to "array" and "float64"
+
+        """
+        value_representation = repr(value)
+        value_representation = value_representation.replace("array", "numpy.array")
+        value_representation = value_representation.replace("float64", "numpy.float64")
+        try:
+            eval(value_representation)
+        except NameError as e:
+            raise ValueError(
+                f"Encountered a value of '{value_representation}' that can't be directly reproduced in python.\n"
+                f"Please report this to the CADET-Python developers.") from e
+
+        return value_representation
+
+    if current_lines_list is None:
+        current_lines_list = []
+
+    for key in sorted(dictionary.keys()):
+        value = dictionary[key]
+
+        absolute_key = merge_to_absolute_key(prefix, key)
+
+        if type(value) in (dict, Dict):
+            current_lines_list = recursively_turn_dict_to_python_list(value, current_lines_list, prefix=absolute_key)
+        else:
+            value_representation = get_pythonic_representation_of_value(value)
+
+            absolute_key = clean_up_key(absolute_key)
+
+            current_lines_list.append(f"{absolute_key} = {value_representation}")
+
+    return current_lines_list
