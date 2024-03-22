@@ -1,8 +1,11 @@
 import ctypes
+
 import numpy
+
 
 def null(*args):
     pass
+
 
 if 0:
     log_print = print
@@ -75,7 +78,8 @@ def param_provider_get_string(reader, name, val):
     if n in c:
         o = c[n]
 
-        #we have one of array of strings, array of bytestrings, bytestring or string or something convertable to one of these
+        # we have one of array of strings, array of bytestrings,
+        # bytestring or string or something convertable to one of these
         if hasattr(o, 'encode'):
             bytes_val = o.encode('utf-8')
         elif hasattr(o, 'decode'):
@@ -262,15 +266,16 @@ def param_provider_num_elements(reader, name):
     log_print('NUMELEMENTS {}: {}'.format(n, 1))
     return 1
 
+
 def param_provider_push_scope(reader, name):
-	n = name.decode('utf-8')
-	
-	if reader.push_scope(n):
-		return 0
-	else:
-		return -1
+    n = name.decode('utf-8')
+
+    if reader.push_scope(n):
+        return 0
+    else:
+        return -1
 
 
 def param_provider_pop_scope(reader):
-	reader.pop_scope()
-	return 0
+    reader.pop_scope()
+    return 0
