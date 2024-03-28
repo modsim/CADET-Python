@@ -185,7 +185,7 @@ class SimulationResult:
 
         if result == _CDT_DATA_NOT_STORED:
             # Call successful, but data is not available
-            return None
+            return
         elif result != _CDT_OK:
             # Something else failed
             raise Exception("Error reading data.")
@@ -210,6 +210,9 @@ class SimulationResult:
                 shape.append(call_outputs[dim].value)
                 dims.append(dim)
 
+        if len(shape) == 0:
+            return
+
         data = numpy.ctypeslib.as_array(call_outputs['data'], shape=shape)
         time = numpy.ctypeslib.as_array(call_outputs['time'], shape=(call_outputs['nTime'].value, ))
 
@@ -222,11 +225,11 @@ class SimulationResult:
         call_outputs = self.load_data(*args, **kwargs)
 
         if call_outputs is None:
-            return None, None, None
+            return
 
-        time, data, dims = self.process_data(call_outputs, own_data)
+        processed_results = self.process_data(call_outputs, own_data)
 
-        return time, data, dims
+        return processed_results
 
     def npartypes(self, unitOpId: int, own_data=True):
         call_outputs = self.load_data(
