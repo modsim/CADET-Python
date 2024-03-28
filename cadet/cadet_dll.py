@@ -7,24 +7,8 @@ import cadet.cadet_dll_parameterprovider as cadet_dll_parameterprovider
 def log_handler(file, func, line, level, level_name, message):
     log_print('{} ({}:{:d}) {}'.format(level_name.decode('utf-8') , func.decode('utf-8') , line, message.decode('utf-8') ))
 
-
-c_cadet_result = ctypes.c_int
-
-array_double = ctypes.POINTER(ctypes.POINTER(ctypes.c_double))
-
-
-point_int = ctypes.POINTER(ctypes.c_int)
-CadetDriver = ctypes.c_void_p
-
-# Values of cdtResult
-_CDT_OK = 0
-_CDT_ERROR = -1
-_CDT_ERROR_INVALID_INPUTS = -2
-_CDT_DATA_NOT_STORED = -3
-
 def _no_log_output(*args):
     pass
-
 
 if 0:
     log_print = print
@@ -32,9 +16,24 @@ else:
     log_print = _no_log_output
 
 
+
+# Some common types
+CadetDriver = ctypes.c_void_p
+array_double = ctypes.POINTER(ctypes.POINTER(ctypes.c_double))
+point_int = ctypes.POINTER(ctypes.c_int)
+
+# Values of cdtResult
+# TODO: Convert to lookup table to improve error messages below.
+c_cadet_result = ctypes.c_int
+_CDT_OK = 0
+_CDT_ERROR = -1
+_CDT_ERROR_INVALID_INPUTS = -2
+_CDT_DATA_NOT_STORED = -3
+
+
 class CADETAPIV010000_DATA():
     """
-    Definition of CADET-CAPI v1.0
+    Definition of CADET-C-API v1.0
 
     signatures : dict with signatures of exported API functions. (See CADET/include/cadet/cadet.h)
     lookup_prototype : ctypes for common parameters
@@ -42,7 +41,7 @@ class CADETAPIV010000_DATA():
 
     """
 
-    # Order is important, has to match the cdtAPIv010000 struct of the C-API
+    # Order of arguments is important, has to match the cdtAPIv010000 struct of the C-API
     signatures = {}
     signatures['createDriver'] = ('drv',)
     signatures['deleteDriver'] = (None, 'drv')
@@ -600,6 +599,7 @@ class CadetDLL:
 
     def load_coordinates(self, sim):
         coordinates = addict.Dict()
+        # TODO: Use n_units from API?
         for unit in range(sim.root.input.model.nunits):
             unit_index = self._get_index_string('unit', unit)
             if 'write_coordinates' in sim.root.input['return'][unit_index].keys():
@@ -610,6 +610,7 @@ class CadetDLL:
 
     def load_solution(self, sim):
         solution = addict.Dict()
+        # TODO: Use n_units from API?
         for unit in range(sim.root.input.model.nunits):
             unit_index = self._get_index_string('unit', unit)
             unit_solution = addict.Dict()
