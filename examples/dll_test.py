@@ -41,6 +41,7 @@ def setup_template_model(
         create_lwe_path.as_posix(),
         f'--out {file_name}',
         f'--unit {model}',
+        f'--parTypes {n_partypes}',
     ]
 
     if include_sensitivity:
