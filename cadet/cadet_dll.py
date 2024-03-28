@@ -50,6 +50,11 @@ class CADETAPIV010000_DATA():
     signatures['getNParTypes'] = ('return', 'drv', 'unitOpId', 'nParTypes')
     signatures['getNumSensitivities'] = ('return', 'drv', 'nSens')
 
+    signatures['getSolutionTimes'] = ('return', 'drv', 'time', 'nTime')
+    signatures['getPrimaryCoordinates'] = ('return', 'drv', 'unitOpId', 'data', 'nCoords')
+    signatures['getSecondaryCoordinates'] = ('return', 'drv', 'unitOpId', 'data', 'nCoords')
+    signatures['getParticleCoordinates'] = ('return', 'drv', 'unitOpId', 'parType', 'data', 'nCoords')
+
     signatures['getSolutionInlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
     signatures['getSolutionOutlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
     signatures['getSolutionBulk'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nAxialCells', 'nRadialCells', 'nComp')
@@ -110,6 +115,7 @@ class CADETAPIV010000_DATA():
         'state': array_double,
         'nStates': point_int,
         'nSens': point_int,
+        'nCoords': point_int,
         None: None,
         'parameterProvider': ctypes.POINTER(cadet_dll_parameterprovider.PARAMETERPROVIDER)
     }
@@ -128,6 +134,7 @@ class CADETAPIV010000_DATA():
         'state': ctypes.POINTER(ctypes.c_double),
         'nStates': ctypes.c_int,
         'nSens': ctypes.c_int,
+        'nCoords': ctypes.c_int,
     }
 
 
@@ -524,6 +531,84 @@ class SimulationResult:
             own_data=own_data
         )
 
+    def solution_times(self, own_data=True):
+        call_outputs = self.load_data('getSolutionTimes')
+
+        if call_outputs is None:
+            return
+
+        shape = (call_outputs['nTime'].value, )
+        if shape[0] == 0:
+            return
+
+        solution_times = numpy.ctypeslib.as_array(call_outputs['data'], shape=shape)
+
+        if own_data:
+            return solution_times.copy()
+        else:
+            return solution_times
+
+    def primary_coordinates(self, unitOpId: int, own_data=True):
+        call_outputs = self.load_data(
+            'getPrimaryCoordinates',
+            unitOpId=unitOpId,
+        )
+
+        if call_outputs is None:
+            return
+
+        shape = (call_outputs['nCoords'].value, )
+        if shape[0] == 0:
+            return
+
+        coordinates = numpy.ctypeslib.as_array(call_outputs['data'], shape=shape)
+
+        if own_data:
+            return coordinates.copy()
+        else:
+            return coordinates
+
+    def secondary_coordinates(self, unitOpId: int, own_data=True):
+        call_outputs = self.load_data(
+            'getSecondaryCoordinates',
+            unitOpId=unitOpId,
+        )
+
+        if call_outputs is None:
+            return
+
+        shape = (call_outputs['nCoords'].value, )
+        if shape[0] == 0:
+            return
+
+        coordinates = numpy.ctypeslib.as_array(call_outputs['data'], shape=shape)
+
+        if own_data:
+            return coordinates.copy()
+        else:
+            return coordinates
+
+    def particle_coordinates(self, unitOpId: int, parType: int, own_data=True):
+        call_outputs = self.load_data(
+            'getParticleCoordinates',
+            unitOpId=unitOpId,
+            parType=parType,
+        )
+
+        if call_outputs is None:
+            return
+
+        shape = (call_outputs['nCoords'].value, )
+        if shape[0] == 0:
+            return
+
+        coordinates = numpy.ctypeslib.as_array(call_outputs['data'], shape=shape)
+
+        if own_data:
+            return coordinates.copy()
+        else:
+            return coordinates
+
 
 class CadetDLL:
 
@@ -600,22 +685,41 @@ class CadetDLL:
         return self.res
 
     def load_results(self, sim):
-        # TODO: solution time
-        # sim.root.output.solution.solution_time = ???
-        self.load_coordinates(sim)
-        # TODO: Crashes when simulation includes sensitivities
+        # self.load_solution_times(sim)
+        # self.load_coordinates(sim)
         self.load_solution(sim)
         self.load_sensitivity(sim)
         self.load_state(sim)
+
+    def load_solution_times(self, sim):
+        solution_times_fun = getattr(self.res, 'solution_times')
+        data = solution_times_fun()
+
+        if data is None:
+            return
+
+        return data
 
     def load_coordinates(self, sim):
         coordinates = addict.Dict()
         # TODO: Use n_units from API?
         for unit in range(sim.root.input.model.nunits):
             unit_index = self._get_index_string('unit', unit)
+            unit_coordinates = addict.Dict()
+
             if 'write_coordinates' in sim.root.input['return'][unit_index].keys():
-                # TODO: Missing CAPI call
-                pass
+                primary_coordinates = self._load_coordinates(sim, unit, 'primary_coordinates')
+                if primary_coordinates is not None:
+                    unit_coordinates.update(primary_coordinates)
+                secondary_coordinates = self._load_coordinates(sim, unit, 'secondary_coordinates')
+                if secondary_coordinates is not None:
+                    unit_coordinates.update(secondary_coordinates)
+                # particle_coordinates = self._load_particle_coordinates(sim, unit)
+                # if particle_coordinates is not None:
+                #     unit_coordinates.update(particle_coordinates)
+
+            if len(unit_coordinates) > 1:
+                coordinates[unit_index].update(unit_coordinates)
 
         sim.root.output.coordinates = coordinates
 
@@ -828,6 +932,45 @@ class CadetDLL:
             return
 
         return solution
+
+    def _load_coordinates(self, sim, unitOpId, coordinates_str):
+        coordinates = addict.Dict()
+        coordinates_fun = getattr(self.res, coordinates_str)
+
+        data = coordinates_fun(unitOpId)
+
+        if data is None:
+            return
+
+        coordinates[coordinates_str] = data
+
+        if len(coordinates) == 0:
+            return
+
+        return coordinates
+
+    def _load_particle_coordinates(self, sim, unitOpId):
+        coordinates = addict.Dict()
+        coordinates_fun = getattr(self.res, "particle_coordinates")
+
+        npartype = self.res.npartypes(unitOpId)
+
+        for partype in range(npartype):
+            data = coordinates_fun(unitOpId, partype)
+
+            if data is None:
+                continue
+
+            if npartype == 1:
+                coordinates["particle_coordinates"] = data
+            else:
+                par_index = self._get_index_string('partype', partype)
+                coordinates[f'particle_coordinates_{par_index}'] = data
+
+        if len(coordinates) == 0:
+            return
+
+        return coordinates
 
     def _load_particle_type(self, sim, data, unitOpId, solution_str, sensIdx=None):
         pass
