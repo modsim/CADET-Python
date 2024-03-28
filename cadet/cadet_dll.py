@@ -48,6 +48,7 @@ class CADETAPIV010000_DATA():
     signatures['runSimulation'] = ('return', 'drv', 'parameterProvider')
 
     signatures['getNParTypes'] = ('return', 'drv', 'unitOpId', 'nParTypes')
+    signatures['getNumSensitivities'] = ('return', 'drv', 'nSens')
 
     signatures['getSolutionInlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
     signatures['getSolutionOutlet'] = ('return', 'drv', 'unitOpId', 'time', 'data', 'nTime', 'nPort', 'nComp')
@@ -108,6 +109,7 @@ class CADETAPIV010000_DATA():
         'nBound': point_int,
         'state': array_double,
         'nStates': point_int,
+        'nSens': point_int,
         None: None,
         'parameterProvider': ctypes.POINTER(cadet_dll_parameterprovider.PARAMETERPROVIDER)
     }
@@ -125,6 +127,7 @@ class CADETAPIV010000_DATA():
         'nBound': ctypes.c_int,
         'state': ctypes.POINTER(ctypes.c_double),
         'nStates': ctypes.c_int,
+        'nSens': ctypes.c_int,
     }
 
 
@@ -234,6 +237,14 @@ class SimulationResult:
     def npartypes(self, unitOpId: int, own_data=True):
         call_outputs = self.load_data(
             'getNParTypes',
+            unitOpId=unitOpId,
+        )
+
+        return int(numpy.ctypeslib.as_array(call_outputs['nParTypes']))
+
+    def nsensitivities(self, unitOpId: int, own_data=True):
+        call_outputs = self.load_data(
+            'getNumSensitivities',
             unitOpId=unitOpId,
         )
 
