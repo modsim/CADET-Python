@@ -211,12 +211,19 @@ class Cadet(H5, metaclass=CadetMeta):
 
     def run(self, timeout = None, check=None):
         data = self.cadet_runner.run(simulation=self.root.input, filename=self.filename, timeout=timeout, check=check)
-        #self.return_information = data
+        # TODO: Why is this commented out?
+        # self.return_information = data
         return data
 
     def run_load(self, timeout = None, check=None, clear=True):
-        data = self.cadet_runner.run(simulation=self.root.input, filename=self.filename, timeout=timeout, check=check)
-        #self.return_information = data
+        data = self.cadet_runner.run(
+            simulation=self.root.input,
+            filename=self.filename,
+            timeout=timeout,
+            check=check
+        )
+        # TODO: Why is this commented out?
+        # self.return_information = data
         self.load_results()
         if clear:
             self.clear()
