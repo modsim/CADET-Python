@@ -18,8 +18,9 @@ CadetDriver = ctypes.c_void_p
 
 # Values of cdtResult
 _CDT_OK = 0
+_CDT_ERROR = -1
+_CDT_ERROR_INVALID_INPUTS = -2
 _CDT_DATA_NOT_STORED = -3
-
 
 def _no_log_output(*args):
     pass
