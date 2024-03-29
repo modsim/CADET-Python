@@ -2,7 +2,7 @@ import setuptools
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
-    
+
 setuptools.setup(
     name="CADET-Python",
     version="0.14.1",
@@ -24,5 +24,5 @@ setuptools.setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.7',
-) 
+    python_requires='>=3.10',
+)
