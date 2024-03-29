@@ -709,7 +709,8 @@ class CadetDLL:
                 for pt in range(num_par_types):
                     par_coords = self.res.particle_coordinates(unit, pt)
                     if par_coords is not None:
-                        coordinates[unit_index][self._get_index_string('particle_coordinates', pt)] = par_coords
+                        par_idx = self._get_index_string('particle_coordinates', pt)
+                        coordinates[unit_index][par_idx] = par_coords
 
         if len(coordinates) > 0:
             sim.root.output.coordinates = coordinates
@@ -804,6 +805,20 @@ class CadetDLL:
         if len(sensitivity) > 0:
             sim.root.output.sensitivity = sensitivity
 
+    def load_state(self, sim):
+        """Load last state from simulation results."""
+        write_solution_last = sim.root.input['return'].get('write_solution_last', 0)
+        if write_solution_last:
+            sim.root.output['last_state_y'] = self.res.last_state_y()
+            sim.root.output['last_state_ydot'] = self.res.last_state_ydot()
+
+        write_sens_last = sim.root.input['return'].get('write_sens_last', 0)
+        if write_sens_last:
+            for idx in range(self.res.nsensitivities()):
+                idx_str_y = self._get_index_string('last_state_sensy', idx)
+                sim.root.output[idx_str_y] = self.res.last_state_sens(idx)
+                idx_str_ydot = self._get_index_string('last_state_sensydot', idx)
+                sim.root.output[idx_str_ydot] = self.res.last_state_sensdot(idx)
 
     def _checks_if_write_is_true(func):
         """Decorator to check if unit operation solution should be written out."""
@@ -934,18 +949,6 @@ class CadetDLL:
 
     def _load_particle_type(self, sim, data, unitOpId, solution_str, sensIdx=None):
         pass
-
-    def load_state(self, sim):
-        if 'write_solution_last' in sim.root.input['return']:
-            sim.root.output['last_state_y'] = self.res.last_state_y()
-            sim.root.output['last_state_ydot'] = self.res.last_state_ydot()
-
-        if 'write_sens_last' in sim.root.input['return']:
-            for idx in range(self.res.nsensitivities()):
-                idx_str_y = self._get_index_string('last_state_sensy', idx)
-                sim.root.output[idx_str_y] = self.res.last_state_sens(idx)
-                idx_str_ydot = self._get_index_string('last_state_sensydot', idx)
-                sim.root.output[idx_str_ydot] = self.res.last_state_sensdot(idx)
 
     @staticmethod
     def _get_index_string(prefix, index):
