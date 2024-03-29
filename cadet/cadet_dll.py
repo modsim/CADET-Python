@@ -685,9 +685,11 @@ class CadetDLL:
 
     def load_solution_times(self, sim):
         if 'write_solution_times' in sim.root.input['return']:
+        """Load solution_times from simulation results."""
             sim.root.output.solution.solution_times = self.res.solution_times()
 
     def load_coordinates(self, sim):
+        """Load coordinates data from simulation results."""
         coordinates = addict.Dict()
         # TODO: Use n_units from API?
         for unit in range(sim.root.input.model.nunits):
@@ -710,6 +712,7 @@ class CadetDLL:
         sim.root.output.coordinates = coordinates
 
     def load_solution(self, sim):
+        """Load solution data from simulation results."""
         solution = addict.Dict()
         # TODO: Use n_units from API?
         for unit in range(sim.root.input.model.nunits):
@@ -741,6 +744,7 @@ class CadetDLL:
         return solution
 
     def load_sensitivity(self, sim):
+        """Load sensitivity data from simulation results."""
         sensitivity = addict.Dict()
         nsens = sim.root.input.sensitivity.get('nsens', 0)
         for sens in range(nsens):
@@ -797,6 +801,7 @@ class CadetDLL:
         sim.root.output.sensitivity = sensitivity
 
     def _checks_if_write_is_true(func):
+        """Decorator to check if unit operation solution should be written out."""
         def wrapper(self, sim, unitOpId, solution_str, *args, **kwargs):
             unit_index = self._get_index_string('unit', unitOpId)
             unit_return_config = sim.root.input['return'][unit_index].keys()
@@ -813,6 +818,7 @@ class CadetDLL:
         return wrapper
 
     def _loads_data(func):
+        """Decorator to load data from simulation results before processing further."""
         def wrapper(self, sim, unitOpId, solution_str, sensIdx=None, *args, **kwargs):
             solution_fun = getattr(self.res, solution_str)
             if sensIdx is None:
@@ -936,4 +942,5 @@ class CadetDLL:
 
     @staticmethod
     def _get_index_string(prefix, index):
+        """Helper method to get string indices (e.g. (unit, 0) -> 'unit_000')."""
         return f'{prefix}_{index:03d}'
