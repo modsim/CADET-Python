@@ -214,7 +214,11 @@ class SimulationResult:
             len_key: str,
             own_data: bool = True):
 
-        data = numpy.ctypeslib.as_array(call_outputs[data_key], shape=(call_outputs[len_key].value, ))
+        array_length = call_outputs[len_key].value
+        if array_length == 0:
+            return
+
+        data = numpy.ctypeslib.as_array(call_outputs[data_key], shape=(array_length, ))
         if own_data:
             return data.copy()
         return data
