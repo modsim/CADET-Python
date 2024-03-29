@@ -679,7 +679,6 @@ class CadetDLL:
 
         self.load_solution_times(sim)
         self.load_coordinates(sim)
-        # TODO: Crashes when simulation includes sensitivities
         self.load_solution(sim)
         self.load_sensitivity(sim)
         self.load_state(sim)
@@ -690,6 +689,7 @@ class CadetDLL:
 
     def load_coordinates(self, sim):
         coordinates = addict.Dict()
+        # TODO: Use n_units from API?
         for unit in range(sim.root.input.model.nunits):
             unit_index = self._get_index_string('unit', unit)
             if 'write_coordinates' in sim.root.input['return'][unit_index].keys():
@@ -711,6 +711,7 @@ class CadetDLL:
 
     def load_solution(self, sim):
         solution = addict.Dict()
+        # TODO: Use n_units from API?
         for unit in range(sim.root.input.model.nunits):
             unit_index = self._get_index_string('unit', unit)
             unit_solution = addict.Dict()
