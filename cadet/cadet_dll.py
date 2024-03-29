@@ -231,9 +231,9 @@ class SimulationResult:
 
         # Ordering of multi-dimensional arrays, all possible dimensions:
         # Example: Outlet [nTime, nPort, nComp]
-        #          Bulk [nTime, nRadialCells, nAxialCells, nComp] if 2D model
+        #          Bulk [nTime, nAxialCells, nRadialCells, nComp] if 2D model
         #          Bulk [nTime, nAxialCells, nComp] if 1D model
-        dimensions = ['nTime', 'nPort', 'nRadialCells', 'nAxialCells', 'nParShells', 'nComp', 'nBound']
+        dimensions = ['nTime', 'nPort', 'nAxialCells', 'nRadialCells', 'nParShells', 'nComp', 'nBound']
         for dim in dimensions:
             if dim in call_outputs and call_outputs[dim].value:
                 shape.append(call_outputs[dim].value)
