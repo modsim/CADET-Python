@@ -358,6 +358,7 @@ grm = Case(
             'axial_coordinates': (10,),
             'particle_coordinates_000': (4,),
         },
+        'solution_times': (1501,),
         'solution_unit_000': {
             'last_state_y': (404,),
             'last_state_ydot': (404,),
@@ -398,6 +399,7 @@ grm_split = Case(
             'axial_coordinates': (10,),
             'particle_coordinates_000': (4,),
         },
+        'solution_times': (1501,),
         'solution_unit_000': {
             'last_state_y': (404,),
             'last_state_ydot': (404,),
@@ -462,6 +464,7 @@ grm_sens = Case(
             'axial_coordinates': (10,),
             'particle_coordinates_000': (4,),
         },
+        'solution_times': (1501,),
         'solution_unit_000': {
             'last_state_y': (404,),
             'last_state_ydot': (404,),
@@ -523,6 +526,7 @@ grm_par_types = Case(
             'particle_coordinates_000': (4,),
             'particle_coordinates_001': (4,),
         },
+        'solution_times': (1501,),
         'solution_unit_000': {
             'last_state_y': (764,),
             'last_state_ydot': (764,),
@@ -567,6 +571,7 @@ _2dgrm = Case(
             'particle_coordinates_000': (4,),
             'radial_coordinates': (3,),
         },
+        'solution_times': (1501,),
         'solution_unit_000': {
             'last_state_y': (1212,),
             'last_state_ydot': (1212,),
@@ -608,6 +613,7 @@ _2dgrm_split_ports = Case(
             'particle_coordinates_000': (4,),
             'radial_coordinates': (3,),
         },
+        'solution_times': (1501,),
         'solution_unit_000': {
             'last_state_y': (1212,),
             'last_state_ydot': (1212,),
@@ -657,6 +663,7 @@ _2dgrm_split_all = Case(
             'particle_coordinates_000': (4,),
             'radial_coordinates': (3,),
         },
+        'solution_times': (1501,),
         'solution_unit_000': {
             'last_state_y': (1212,),
             'last_state_ydot': (1212,),
@@ -769,6 +776,8 @@ def test_simulator_options(use_dll, test_case):
 
     for key, value in expected_results['coordinates_unit_000'].items():
         assert model.root.output.coordinates.unit_000[key].shape == value
+
+    assert model.root.output.solution.solution_times.shape == expected_results['solution_times']
 
     for key, value in expected_results['solution_unit_000'].items():
         assert model.root.output.solution.unit_000[key].shape == value
