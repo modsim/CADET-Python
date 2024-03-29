@@ -513,7 +513,7 @@ class SimulationResult:
 
     def last_state_ydot(self, own_data=True):
         return self._load_and_process(
-            'getLastStateDerivative',
+            'getLastStateTimeDerivative',
             own_data=own_data,
         )
 
@@ -923,13 +923,15 @@ class CadetDLL:
 
     def load_state(self, sim):
         if 'write_solution_last' in sim.root.input['return']:
-            sim.root.output['last_state_y'] = self.res.lastState()
-            sim.root.output['last_state_ydot'] = self.res.lastStateDerivative()
+            sim.root.output['last_state_y'] = self.res.last_state_y()
+            sim.root.output['last_state_ydot'] = self.res.last_state_ydot()
 
         if 'write_sens_last' in sim.root.input['return']:
-            for idx in range(self.res.num_sensitivities()):
-                sim.root.output[self._get_index_string('last_state_sensy', idx)] = self.res.lastSensitivityState(idx)
-                sim.root.output[self._get_index_string('last_state_sensydot', idx)] = self.res.lastSensitivityStateDerivative(idx)
+            for idx in range(self.res.nsensitivities()):
+                idx_str_y = self._get_index_string('last_state_sensy', idx)
+                sim.root.output[idx_str_y] = self.res.last_state_sens(idx)
+                idx_str_ydot = self._get_index_string('last_state_sensydot', idx)
+                sim.root.output[idx_str_ydot] = self.res.last_state_sensdot(idx)
 
     @staticmethod
     def _get_index_string(prefix, index):
