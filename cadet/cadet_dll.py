@@ -248,7 +248,8 @@ class SimulationResult:
                 data = data.copy()
 
         if 'time' in call_outputs:
-            time = numpy.ctypeslib.as_array(call_outputs['time'], shape=(call_outputs['nTime'].value, ))
+            n_time = call_outputs['nTime'].value
+            time = numpy.ctypeslib.as_array(call_outputs['time'], shape=(n_time, ))
             if own_data:
                 time = time.copy()
 
@@ -594,7 +595,6 @@ class SimulationResult:
             'time',
             'nTime',
             'getSolutionTimes',
-            None,
             own_data=own_data
         )
 
