@@ -906,45 +906,51 @@ class CadetDLL:
         split_ports_data = sim.root.input['return'].get('split_ports_data', 1)
         single_as_multi_port = sim.root.input['return'].get('single_as_multi_port', 0)
 
-        nComp = dims.index('nComp')
+        nComp_idx = dims.index('nComp')
+        nComp = out.shape[nComp_idx]
         try:
-            nPorts = dims.index('nPorts')
+            nPort_idx = dims.index('nPort')
+            nPort = out.shape[nPort_idx]
         except ValueError:
-            nPorts = None
+            nPort_idx = None
+            nPort = 1
 
         if split_components_data:
             if split_ports_data:
-                if nPorts is None:
+                if nPort == 1:
                     if single_as_multi_port:
-                        for comp in range(out.shape[nComp]):
+                        for comp in range(nComp):
                             comp_out = numpy.squeeze(out[..., comp])
                             solution[f'{solution_str}_port_000_comp_{comp:03d}'] = comp_out
                     else:
-                        for comp in range(out.shape[nComp]):
+                        for comp in range(nComp):
                             comp_out = numpy.squeeze(out[..., comp])
                             solution[f'{solution_str}_comp_{comp:03d}'] = comp_out
                 else:
-                    for port in range(out.shape[nPorts]):
-                        for comp in range(out.shape[nComp]):
+                    for port in range(nPort):
+                        for comp in range(nComp):
                             comp_out = numpy.squeeze(out[..., port, comp])
                             solution[f'{solution_str}_port_{port:03d}_comp_{comp:03d}'] = comp_out
             else:
-                for comp in range(out.shape[nComp]):
+                for comp in range(nComp):
                     comp_out = numpy.squeeze(out[..., comp])
                     solution[f'{solution_str}_comp_{comp:03d}'] = comp_out
         else:
             if split_ports_data:
-                if nPorts is None:
+                if nPort == 1:
                     if single_as_multi_port:
                         solution[f'{solution_str}_port_000'] = out
                     else:
-                        solution[solution_str] = out
+                        solution[solution_str] = numpy.squeeze(out[..., 0, :])
                 else:
-                    for port in range(out.shape[nPorts]):
+                    for port in range(nPort):
                         port_out = numpy.squeeze(out[..., port, :])
                         solution[f'{solution_str}_port_{port:03d}'] = port_out
             else:
-                solution[solution_str] = out
+                if nPort == 1 and nPort_idx is not None:
+                    solution[solution_str] = numpy.squeeze(out[..., 0, :])
+                else:
+                    solution[solution_str] = out
 
         return solution
 
