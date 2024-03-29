@@ -711,7 +711,8 @@ class CadetDLL:
                     if par_coords is not None:
                         coordinates[unit_index][self._get_index_string('particle_coordinates', pt)] = par_coords
 
-        sim.root.output.coordinates = coordinates
+        if len(coordinates) > 0:
+            sim.root.output.coordinates = coordinates
 
     def load_solution(self, sim):
         """Load solution data from simulation results."""
@@ -741,7 +742,7 @@ class CadetDLL:
                 solution[unit_index].update(unit_solution)
 
         if len(unit_solution) > 1:
-            sim.root.output.solution = solution
+            sim.root.output.solution.update(solution)
 
         return solution
 
@@ -797,10 +798,12 @@ class CadetDLL:
                 unit_sensitivity[sens_index].update(
                     self._load_solution_trivial(sim, unit, 'sensdot_volume', sens)
                 )
+            if len(unit_sensitivity) > 0:
+                sensitivity[sens_index].update(unit_sensitivity)
 
-            sensitivity[sens_index].update(unit_sensitivity)
+        if len(sensitivity) > 0:
+            sim.root.output.sensitivity = sensitivity
 
-        sim.root.output.sensitivity = sensitivity
 
     def _checks_if_write_is_true(func):
         """Decorator to check if unit operation solution should be written out."""
