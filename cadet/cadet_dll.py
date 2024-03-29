@@ -266,68 +266,6 @@ class SimulationResult:
 
         return self._process_array(call_outputs, data_key, len_key, own_data)
 
-    def load_data_old(
-            self,
-            get_solution_str: str,
-            unitOpId: int | None,
-            sensIdx: int = None,
-            parType: int = None,
-            own_data: bool = True):
-
-        get_solution = getattr(self._api, get_solution_str)
-
-        # Collect actual values
-        call_args = []
-        call_outputs = {}
-
-        # Construct API call function arguments
-        for key in CADETAPIV010000_DATA.signatures[get_solution_str]:
-            if key == 'return':
-                # Skip, this is the actual return value of the API function
-                continue
-            elif key == 'drv':
-                call_args.append(self._driver)
-            elif key == 'unitOpId' and unitOpId is not None:
-                call_args.append(unitOpId)
-            elif key == 'sensIdx':
-                call_args.append(sensIdx)
-            elif key == 'parType':
-                call_args.append(parType)
-            else:
-                _obj = CADETAPIV010000_DATA.lookup_output_argument_type[key]()
-                call_outputs[key] = _obj
-                call_args.append(ctypes.byref(_obj))
-
-        result = get_solution(*call_args)
-
-        if result == _CDT_DATA_NOT_STORED:
-            # Call successful, but data is not available
-            return None, None, None
-        elif result != _CDT_OK:
-            # Something else failed
-            raise Exception("Error reading data.")
-
-        shape = []
-        dims = []
-
-        # Ordering of multi-dimensional arrays, all possible dimensions:
-        # Example: Outlet [nTime, nPort, nComp]
-        #          Bulk [nTime, nRadialCells, nAxialCells, nComp] if 2D model
-        #          Bulk [nTime, nAxialCells, nComp] if 1D model
-        dimensions = ['nTime', 'nPort', 'nRadialCells', 'nAxialCells', 'nParShells', 'nComp', 'nBound']
-        for dim in dimensions:
-            if dim in call_outputs and call_outputs[dim].value:
-                shape.append(call_outputs[dim].value)
-                dims.append(dim)
-
-        data = numpy.ctypeslib.as_array(call_outputs['data'], shape=shape)
-        time = numpy.ctypeslib.as_array(call_outputs['time'], shape=(call_outputs['nTime'].value, ))
-
-        if own_data:
-            return time.copy(), data.copy(), dims
-        else:
-            return time, data, dims
-
     def npartypes(self, unitOpId: int):
         call_outputs = self._load_data(
             'getNumParTypes',
