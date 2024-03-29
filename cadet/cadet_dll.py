@@ -684,8 +684,9 @@ class CadetDLL:
         self.load_state(sim)
 
     def load_solution_times(self, sim):
-        if 'write_solution_times' in sim.root.input['return']:
         """Load solution_times from simulation results."""
+        write_solution_times = sim.root.input['return'].get('write_solution_times', 0)
+        if write_solution_times:
             sim.root.output.solution.solution_times = self.res.solution_times()
 
     def load_coordinates(self, sim):
@@ -694,7 +695,8 @@ class CadetDLL:
         # TODO: Use n_units from API?
         for unit in range(sim.root.input.model.nunits):
             unit_index = self._get_index_string('unit', unit)
-            if 'write_coordinates' in sim.root.input['return'][unit_index].keys():
+            write_coordinates = sim.root.input['return'][unit_index].get('write_coordinates', 0)
+            if write_coordinates:
                 pc = self.res.primary_coordinates(unit)
                 if pc is not None:
                     coordinates[unit_index]['axial_coordinates'] = pc
@@ -804,8 +806,10 @@ class CadetDLL:
         """Decorator to check if unit operation solution should be written out."""
         def wrapper(self, sim, unitOpId, solution_str, *args, **kwargs):
             unit_index = self._get_index_string('unit', unitOpId)
-            unit_return_config = sim.root.input['return'][unit_index].keys()
-            if f'write_{solution_str}' not in unit_return_config:
+
+            write = sim.root.input['return'][unit_index].get(f'write_{solution_str}', 0)
+
+            if not write:
                 return {}
 
             solution = func(self, sim, unitOpId, solution_str, *args, **kwargs)
