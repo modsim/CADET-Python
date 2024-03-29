@@ -233,7 +233,16 @@ class SimulationResult:
         # Example: Outlet [nTime, nPort, nComp]
         #          Bulk [nTime, nAxialCells, nRadialCells, nComp] if 2D model
         #          Bulk [nTime, nAxialCells, nComp] if 1D model
-        dimensions = ['nTime', 'nPort', 'nAxialCells', 'nRadialCells', 'nParShells', 'nComp', 'nBound']
+        dimensions = [
+            'nTime',
+            'nPort',
+            'nAxialCells',
+            'nRadialCells',
+            'nParTypes',
+            'nParShells',
+            'nComp',
+            'nBound',
+        ]
         for dim in dimensions:
             if dim in call_outputs and call_outputs[dim].value:
                 shape.append(call_outputs[dim].value)
