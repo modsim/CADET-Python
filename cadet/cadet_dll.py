@@ -763,56 +763,60 @@ class CadetDLL:
         """Load sensitivity data from simulation results."""
         sensitivity = addict.Dict()
         nsens = sim.root.input.sensitivity.get('nsens', 0)
+
         for sens in range(nsens):
             sens_index = self._get_index_string('param', sens)
+
             for unit in range(sim.root.input.model.nunits):
                 unit_sensitivity = addict.Dict()
+                unit_index = self._get_index_string('unit', unit)
 
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_io(sim, unit, 'sens_inlet', sens)
                 )
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_io(sim, unit, 'sens_outlet', sens)
                 )
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_trivial(sim, unit, 'sens_bulk', sens)
                 )
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_particle(sim, unit, 'sens_particle', sens)
                 )
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_particle(sim, unit, 'sens_solid', sens)
                 )
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_trivial(sim, unit, 'sens_flux', sens)
                 )
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_trivial(sim, unit, 'sens_volume', sens)
                 )
 
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_io(sim, unit, 'sensdot_inlet', sens)
                 )
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_io(sim, unit, 'sensdot_outlet', sens)
                 )
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_trivial(sim, unit, 'sensdot_bulk', sens)
                 )
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_particle(sim, unit, 'sensdot_particle', sens)
                 )
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_particle(sim, unit, 'sensdot_solid', sens)
                 )
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_trivial(sim, unit, 'sensdot_flux', sens)
                 )
-                unit_sensitivity[sens_index].update(
+                unit_sensitivity.update(
                     self._load_solution_trivial(sim, unit, 'sensdot_volume', sens)
                 )
-            if len(unit_sensitivity) > 0:
-                sensitivity[sens_index].update(unit_sensitivity)
+
+                if len(unit_sensitivity) > 0:
+                    sensitivity[sens_index][unit_index] = unit_sensitivity
 
         if len(sensitivity) > 0:
             sim.root.output.sensitivity = sensitivity
