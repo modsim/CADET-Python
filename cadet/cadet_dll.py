@@ -259,10 +259,10 @@ class SimulationResult:
         call_outputs = self._load_data(*args, **kwargs)
 
         if call_outputs is None:
-            return None, None, None
+            return
 
-        time, data, dims = self._process_data(call_outputs, own_data)
-        return time, data, dims
+        processed_results = self._process_data(call_outputs, own_data)
+        return processed_results
 
     def _load_and_process_array(self, data_key: str, len_key: str, *args, own_data=True, **kwargs):
         call_outputs = self._load_data(*args, **kwargs)
