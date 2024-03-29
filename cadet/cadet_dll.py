@@ -686,17 +686,17 @@ class CadetDLL:
             unit_index = self._get_index_string('unit', unit)
             if 'write_coordinates' in sim.root.input['return'][unit_index].keys():
                 pc = self.res.primary_coordinates(unit)
-                if pc:
+                if pc is not None:
                     coordinates[unit_index]['axial_coordinates'] = pc
 
                 sc = self.res.secondary_coordinates(unit)
-                if sc:
+                if sc is not None:
                     coordinates[unit_index]['radial_coordinates'] = sc
 
                 num_par_types = self.res.npartypes(unit)
                 for pt in range(num_par_types):
                     par_coords = self.res.particle_coordinates(unit, pt)
-                    if par_coords:
+                    if par_coords is not None:
                         coordinates[unit_index][self._get_index_string('particle_coordinates', pt)] = par_coords
 
         sim.root.output.coordinates = coordinates
