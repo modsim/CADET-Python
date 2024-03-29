@@ -13,7 +13,7 @@ from cadet import Cadet
 
 # %% Utility methods
 
-# TODO: Remove once #5 is merged
+# TODO: Remove once #14 is merged
 cadet_root = Path('/home/jo/code/CADET/install/capi/')
 
 def setup_model(
@@ -283,6 +283,19 @@ def run_simulation_with_options(use_dll, model_options, solution_recorder_option
 
 
 # %% Model templates
+
+lrm_template = {
+    'model': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
+    'n_partypes': 1,
+    'include_sensitivity': False,
+}
+
+lrmp_template = {
+    'model': 'LUMPED_RATE_MODEL_WITH_PORES',
+    'n_partypes': 1,
+    'include_sensitivity': False,
+}
+
 grm_template = {
     'model': 'GENERAL_RATE_MODEL',
     'n_partypes': 1,
@@ -344,6 +357,83 @@ class Case():
         return \
             f"Case('{self.name}', {self.model_options}, " \
             f"{self.solution_recorder_options}, {self.expected_results})"
+
+# %% LRM
+
+lrm = Case(
+    name='lrm',
+    model_options=lrm_template,
+    solution_recorder_options=no_split_options,
+    expected_results={
+        'last_state_y': (92,),
+        'last_state_ydot': (92,),
+        'coordinates_unit_000': {
+            'axial_coordinates': (10,),
+        },
+        'solution_times': (1501,),
+        'solution_unit_000': {
+            'solution_inlet': (1501, 4),
+            'solution_outlet': (1501, 4),
+            'solution_bulk': (1501, 10, 4),
+            'solution_solid': (1501, 10, 4),
+            'soldot_inlet': (1501, 4),
+            'soldot_outlet': (1501, 4),
+            'soldot_bulk': (1501, 10, 4),
+            'soldot_solid': (1501, 10, 4),
+            'last_state_y': (84,),
+            'last_state_ydot': (84,),
+        },
+        'solution_unit_001': {
+            'solution_inlet': (1501, 4),
+            'solution_outlet': (1501, 4),
+            'soldot_inlet': (1501, 4),
+            'soldot_outlet': (1501, 4),
+            'last_state_y': (4,),
+            'last_state_ydot': (4,),
+        },
+    },
+)
+
+# %% LRMP
+
+lrmp = Case(
+    name='lrmp',
+    model_options=lrmp_template,
+    solution_recorder_options=no_split_options,
+    expected_results={
+        'last_state_y': (172,),
+        'last_state_ydot': (172,),
+        'coordinates_unit_000': {
+            'axial_coordinates': (10,),
+            'particle_coordinates_000': (1,),
+        },
+        'solution_times': (1501,),
+        'solution_unit_000': {
+            'last_state_y': (164,),
+            'last_state_ydot': (164,),
+            'soldot_bulk': (1501, 10, 4),
+            'soldot_flux': (1501, 10, 1, 4),
+            'soldot_inlet': (1501, 4),
+            'soldot_outlet': (1501, 4),
+            'soldot_particle': (1501, 10, 4),
+            'soldot_solid': (1501, 10, 4),
+            'solution_bulk': (1501, 10, 4),
+            'solution_flux': (1501, 10, 1, 4),
+            'solution_inlet': (1501, 4),
+            'solution_outlet': (1501, 4),
+            'solution_particle': (1501, 10, 4),
+            'solution_solid': (1501, 10, 4),
+        },
+        'solution_unit_001': {
+            'last_state_y': (4,),
+            'last_state_ydot': (4,),
+            'soldot_inlet': (1501, 4),
+            'soldot_outlet': (1501, 4),
+            'solution_inlet': (1501, 4),
+            'solution_outlet': (1501, 4),
+        },
+    },
+)
 
 # %% GRM
 
@@ -751,6 +841,8 @@ _2dgrm_split_all = Case(
 
 use_dll = [False, True]
 test_cases = [
+    lrm,
+    lrmp,
     grm,
     grm_split,
     grm_sens,
