@@ -947,9 +947,6 @@ class CadetDLL:
 
         return solution
 
-    def _load_particle_type(self, sim, data, unitOpId, solution_str, sensIdx=None):
-        pass
-
     @staticmethod
     def _get_index_string(prefix, index):
         """Helper method to get string indices (e.g. (unit, 0) -> 'unit_000')."""
