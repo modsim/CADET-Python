@@ -280,10 +280,9 @@ class SimulationResult:
 
         return int(call_outputs['nParTypes'].value)
 
-    def nsensitivities(self, unitOpId: int):
+    def nsensitivities(self):
         call_outputs = self._load_data(
             'getNumSensitivities',
-            unitOpId=unitOpId,
         )
 
         return int(call_outputs['nSens'].value)
