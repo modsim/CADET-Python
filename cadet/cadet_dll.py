@@ -506,40 +506,52 @@ class SimulationResult:
         )
 
     def last_state_y(self, own_data=True):
-        return self._load_and_process(
+        return self._load_and_process_array(
+            'state',
+            'nStates',
             'getLastState',
             own_data=own_data,
         )
 
     def last_state_ydot(self, own_data=True):
-        return self._load_and_process(
+        return self._load_and_process_array(
+            'state',
+            'nStates',
             'getLastStateTimeDerivative',
             own_data=own_data,
         )
 
     def last_state_y_unit(self, unitOpId: int, own_data=True):
-        return self._load_and_process(
+        return self._load_and_process_array(
+            'state',
+            'nStates',
             'getLastUnitState',
             unitOpId=unitOpId,
             own_data=own_data,
         )
 
     def last_state_ydot_unit(self, unitOpId: int, own_data=True):
-        return self._load_and_process(
+        return self._load_and_process_array(
+            'state',
+            'nStates',
             'getLastUnitStateTimeDerivative',
             unitOpId=unitOpId,
             own_data=own_data,
         )
 
     def last_state_sens(self, sensIdx: int, own_data=True):
-        return self._load_and_process(
+        return self._load_and_process_array(
+            'state',
+            'nStates',
             'getLastSensitivityState',
             sensIdx=sensIdx,
             own_data=own_data,
         )
 
     def last_state_sensdot(self, sensIdx: int, own_data=True):
-        return self._load_and_process(
+        return self._load_and_process_array(
+            'state',
+            'nStates',
             'getLastSensitivityStateTimeDerivative',
             sensIdx=sensIdx,
             own_data=own_data,
@@ -807,11 +819,13 @@ class CadetDLL:
 
     def load_state(self, sim):
         """Load last state from simulation results."""
+        # System state
         write_solution_last = sim.root.input['return'].get('write_solution_last', 0)
         if write_solution_last:
             sim.root.output['last_state_y'] = self.res.last_state_y()
             sim.root.output['last_state_ydot'] = self.res.last_state_ydot()
 
+        # System sensitivities
         write_sens_last = sim.root.input['return'].get('write_sens_last', 0)
         if write_sens_last:
             for idx in range(self.res.nsensitivities()):
@@ -819,6 +833,18 @@ class CadetDLL:
                 sim.root.output[idx_str_y] = self.res.last_state_sens(idx)
                 idx_str_ydot = self._get_index_string('last_state_sensydot', idx)
                 sim.root.output[idx_str_ydot] = self.res.last_state_sensdot(idx)
+
+
+        # TODO: Use n_units from API?
+        solution = sim.root.output.solution
+        for unit in range(sim.root.input.model.nunits):
+            unit_index = self._get_index_string('unit', unit)
+            write_solution_last = sim.root.input['return'][unit_index].get('write_solution_last_unit', 0)
+            if write_solution_last:
+                solution_last_unit = self.res.last_state_y_unit(unit)
+                solution[unit_index]['last_state_y'] = solution_last_unit
+                soldot_last_unit = self.res.last_state_ydot_unit(unit)
+                solution[unit_index]['last_state_ydot'] = soldot_last_unit
 
     def _checks_if_write_is_true(func):
         """Decorator to check if unit operation solution should be written out."""
