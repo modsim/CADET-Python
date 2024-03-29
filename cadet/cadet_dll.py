@@ -239,6 +239,9 @@ class SimulationResult:
                 shape.append(call_outputs[dim].value)
                 dims.append(dim)
 
+        if len(shape) == 0:
+            return
+
         if 'data' in call_outputs:
             data = numpy.ctypeslib.as_array(call_outputs['data'], shape=shape)
             if own_data:
