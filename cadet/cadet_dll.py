@@ -252,6 +252,11 @@ class SimulationResult:
             return
 
         if 'data' in call_outputs:
+            if 'nParShells'  in dims:
+                nParShells = call_outputs['nParShells'].value
+                if nParShells == 1:
+                    shape.pop(dims.index('nParShells'))
+
             data = numpy.ctypeslib.as_array(call_outputs['data'], shape=shape)
             if own_data:
                 data = data.copy()
