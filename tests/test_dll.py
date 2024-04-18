@@ -284,6 +284,12 @@ def run_simulation_with_options(use_dll, model_options, solution_recorder_option
 
 # %% Model templates
 
+cstr_template = {
+    'model': 'CSTR',
+    'n_partypes': 1,
+    'include_sensitivity': False,
+}
+
 lrm_template = {
     'model': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
     'n_partypes': 1,
@@ -357,6 +363,45 @@ class Case():
         return \
             f"Case('{self.name}', {self.model_options}, " \
             f"{self.solution_recorder_options}, {self.expected_results})"
+
+# %% CSTR
+
+cstr = Case(
+    name='cstr',
+    model_options=cstr_template,
+    solution_recorder_options=no_split_options,
+    expected_results={
+        'last_state_y': (21,),
+        'last_state_ydot': (21,),
+        'coordinates_unit_000': {
+            'axial_coordinates': (1,),
+            'particle_coordinates_000': (1,),
+        },
+        'solution_times': (1501,),
+        'solution_unit_000': {
+            'solution_inlet': (1501, 4),
+            'solution_outlet': (1501, 4),
+            'solution_bulk': (1501, 4),
+            'solution_solid': (1501, 4),
+            'solution_volume': (1501, 1),
+            'soldot_inlet': (1501, 4),
+            'soldot_outlet': (1501, 4),
+            'soldot_bulk': (1501, 4),
+            'soldot_solid': (1501, 4),
+            'soldot_volume': (1501, 1),
+            'last_state_y': (13,),
+            'last_state_ydot': (13,),
+        },
+        'solution_unit_001': {
+            'solution_inlet': (1501, 4),
+            'solution_outlet': (1501, 4),
+            'soldot_inlet': (1501, 4),
+            'soldot_outlet': (1501, 4),
+            'last_state_y': (4,),
+            'last_state_ydot': (4,),
+        },
+    },
+)
 
 # %% LRM
 
@@ -841,6 +886,7 @@ _2dgrm_split_all = Case(
 
 use_dll = [False, True]
 test_cases = [
+    cstr,
     lrm,
     lrmp,
     grm,
