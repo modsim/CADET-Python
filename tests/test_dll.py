@@ -94,7 +94,7 @@ def setup_model(
 
     create_lwe_path = Path(cadet_root) / 'bin' / executable
 
-    args =[
+    args = [
         create_lwe_path.as_posix(),
         f'--out {file_name}',
         f'--unit {model}',
