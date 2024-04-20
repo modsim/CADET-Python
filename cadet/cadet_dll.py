@@ -230,15 +230,16 @@ class SimulationResult:
         dims = []
 
         # Ordering of multi-dimensional arrays, all possible dimensions:
-        # Example: Outlet [nTime, nPort, nComp]
-        #          Bulk [nTime, nAxialCells, nRadialCells, nComp] if 2D model
-        #          Bulk [nTime, nAxialCells, nComp] if 1D model
+        # bulk: 'nTime', ('nAxialCells',) ('nRadialCells' / 'nPorts',) 'nComp'
+        # particle_liquid: 'nTime', ('nParTypes',) ('nAxialCells',) ('nRadialCells' / 'nPorts',) ('nParShells',) 'nComp'
+        # particle_solid: 'nTime', ('nParTypes',) ('nAxialCells',) ('nRadialCells' / 'nPorts',) ('nParShells',) 'nComp', 'nBound'
+        # flux: 'nTime', ('nParTypes',) ('nAxialCells',) ('nRadialCells' / 'nPorts',) 'nComp'
         dimensions = [
             'nTime',
-            'nPort',
-            'nAxialCells',
-            'nRadialCells',
             'nParTypes',
+            'nAxialCells',
+            'nPort',
+            'nRadialCells',
             'nParShells',
             'nComp',
             'nBound',
@@ -252,7 +253,7 @@ class SimulationResult:
             return
 
         if 'data' in call_outputs:
-            if 'nParShells'  in dims:
+            if 'nParShells' in dims:
                 nParShells = call_outputs['nParShells'].value
                 if nParShells == 1:
                     shape.pop(dims.index('nParShells'))
