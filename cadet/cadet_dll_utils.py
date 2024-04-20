@@ -120,7 +120,7 @@ def param_provider_get_int_array(reader, name, n_elem, val):
         o = c[n]
         if isinstance(o, list):
             o = numpy.ascontiguousarray(o)
-        if (not isinstance(o, numpy.ndarray)) or (o.dtype != numpy.int) or (not o.flags.c_contiguous):
+        if (not isinstance(o, numpy.ndarray)) or (o.dtype != int) or (not o.flags.c_contiguous):
             return -1
 
         n_elem[0] = ctypes.c_int(o.size)
@@ -189,25 +189,20 @@ def param_provider_get_bool_array_item(reader, name, index, val):
 
 
 def param_provider_get_string_array_item(reader, name, index, val):
-    n = name.decode('utf-8')
-    c = reader.current()
+    name = name.decode('utf-8')
+    current_reader = reader.current()
 
-    if n in c:
-        o = c[n]
-        if index == 0:
-            if hasattr(o, 'encode'):
-                bytes_val = o.encode('utf-8')
-            elif hasattr(o, 'decode'):
-                bytes_val = o
+    if name in current_reader:
+        str_value = current_reader[name]
+        if isinstance(str_value, bytes):
+            bytes_val = str_value
         else:
-            if hasattr(o[index], 'encode'):
-                bytes_val = o[index].encode('utf-8')
-            elif hasattr(o[index], 'decode'):
-                bytes_val = o[index]
+            bytes_val = str_value[index]
 
         reader.buffer = bytes_val
         val[0] = ctypes.cast(reader.buffer, ctypes.c_char_p)
-        log_print('GET array [string] ({}) {}: {}'.format(index, n, reader.buffer.decode('utf-8')))
+        log_print(f"GET array [string] ({index}) {name}: {reader.buffer.decode('utf-8')}")
+
         return 0
 
     return -1
@@ -264,7 +259,7 @@ def param_provider_num_elements(reader, name):
 
 def param_provider_push_scope(reader, name):
 	n = name.decode('utf-8')
-	
+
 	if reader.push_scope(n):
 		return 0
 	else:
