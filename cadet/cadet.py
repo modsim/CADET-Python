@@ -1,6 +1,5 @@
 import copy
 import json
-import os
 import platform
 import pprint
 import shutil
@@ -336,15 +335,6 @@ class Cadet(H5, metaclass=CadetMeta):
         # Look for debug dll if dll is not found.
         if dll_path.is_file():
             self.cadet_dll_path = dll_path.as_posix()
-
-        if platform.system() != 'Windows':
-            try:
-                cadet_lib_path = cadet_root / 'lib'
-                if cadet_lib_path.as_posix() not in os.environ['LD_LIBRARY_PATH']:
-                    os.environ['LD_LIBRARY_PATH'] += \
-                        os.pathsep + cadet_lib_path.as_posix()
-            except KeyError:
-                os.environ['LD_LIBRARY_PATH'] = cadet_lib_path.as_posix()
 
     def transform(self, x):
         return str.upper(x)
